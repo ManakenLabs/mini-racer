@@ -11,7 +11,7 @@
             padding: 0;
             user-select: none;
             -webkit-user-select: none;
-            touch-action: manipulation; /* Solves fast-tap delay inside watchOS web views */
+            touch-action: manipulation;
         }
         html, body {
             width: 100%;
@@ -165,7 +165,6 @@
         let startAngle = 0;
         let currentRotation = 0;
 
-        // Custom fail-proof engine timer configuration to bypass watchOS runtime throttling
         function runFallbackTimer(callback) {
             return window.requestAnimationFrame(callback) || 
                    window.webkitRequestAnimationFrame(callback) || 
@@ -266,7 +265,7 @@
 
             if (Math.abs(trackPosition) > 0.82) {
                 gameOver = true;
-                alert(`OFF ROAD CRASH! Final Score: ${score}`);
+                alert(`OFF ROAD CRASH! Score: ${score}`);
                 resetGame();
                 return;
             }
@@ -286,3 +285,8 @@
                 obs.progress += (speed * 0.0001) + (obs.progress * 0.035);
 
                 if (obs.progress >= 1) {
+                    obstacles.splice(i, 1);
+                    continue;
+                }
+
+                if (obs.progress > 0.80 && obs.progress < 0.98) {
