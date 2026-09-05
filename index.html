@@ -158,6 +158,10 @@
         let startAngle = 0;
         let currentRotation = 0;
 
+        function runFallbackTimer(callback) {
+            return setTimeout(callback, 1000 / 30);
+        }
+
         function setupTouchPedals() {
             const gas = document.getElementById('gas-zone');
             const brake = document.getElementById('brake-zone');
@@ -284,8 +288,3 @@
                         gameOver = true;
                         alert(`TRAFFIC CRASH! Score: ${score}`);
                         resetGame();
-                        break;
-                    }
-                }
-            }
-
