@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Drift Racer POV</title>
+    <title>3D Drift Console</title>
     <style>
         * {
             box-sizing: border-box;
@@ -11,6 +11,7 @@
             padding: 0;
             user-select: none;
             -webkit-user-select: none;
+            touch-action: manipulation; /* Solves fast-tap delay inside watchOS web views */
         }
         html, body {
             width: 100%;
@@ -38,12 +39,12 @@
             z-index: 5;
         }
         #score-val { color: #34c759; }
-        #control-mode { color: #a1a1a6; font-size: 0.65rem; }
+        #speed-val { color: #ff9500; }
 
         #view-wrapper {
             position: relative;
             width: 95vw;
-            height: 52vh;
+            height: 54vh;
             border: 2px solid #333;
             border-radius: 12px;
             overflow: hidden;
@@ -52,43 +53,6 @@
             width: 100%;
             height: 100%;
             display: block;
-        }
-
-        /* Fixed structural touch alignment container */
-        #start-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: #000;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: #fff;
-        }
-        #start-overlay p {
-            font-size: 0.75rem;
-            font-weight: bold;
-            letter-spacing: 0.5px;
-            margin-bottom: 12px;
-        }
-        .btn-start {
-            background: #34c759;
-            color: #fff;
-            border: none;
-            width: 100px;
-            height: 36px;
-            border-radius: 18px;
-            font-size: 0.85rem;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(52,199,89,0.3);
-        }
-        .btn-start:active {
-            background: #2aa147;
         }
 
         #wheel-container {
@@ -130,7 +94,7 @@
         .touch-pedal {
             position: absolute;
             bottom: 0;
-            width: 48px;
+            width: 52px;
             height: 90%;
             z-index: 1;
             display: flex;
@@ -147,15 +111,8 @@
 </head>
 <body>
 
-    <div id="start-overlay">
-        <p>READY TO DRIVE</p>
-        <!-- Standard cross-platform touch event declarations -->
-        <div class="btn-start" role="button" onclick="startGameCanvas()" ontouchstart="startGameCanvas()">LAUNCH</div>
-    </div>
-
     <div id="hud">
         <div>SCORE: <span id="score-val">0</span></div>
-        <div id="control-mode">MODE: TOUCH</div>
         <div><span id="speed-val">0</span> MPH</div>
     </div>
 
@@ -181,13 +138,13 @@
             canvas.width = canvas.clientWidth;
             canvas.height = canvas.clientHeight;
         }
+        resizeCanvas();
         window.addEventListener('load', resizeCanvas);
         window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
 
         let playerX = 0; 
         let score = 0;
-        let speed = 20; 
+        let speed = 40; 
         let baseSpeed = 40;
         let currentTargetSpeed = 40;
         let gameOver = false;
@@ -207,37 +164,19 @@
         let isDrawing = false;
         let startAngle = 0;
         let currentRotation = 0;
-        let gameActive = false;
 
-        function startGameCanvas() {
-            if (gameActive) return;
-            gameActive = true;
-            
-            document.getElementById('start-overlay').style.display = 'none';
-            resizeCanvas();
-            setupTouchPedals();
-            
-            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission().then(res => {
-                    if(res === 'granted') {
-                        window.addEventListener('deviceorientation', (e) => {
-                            let pitch = e.beta;
-                            if (pitch > 45) currentTargetSpeed = Math.min(160, baseSpeed + (pitch - 45) * 3);
-                            if (pitch < 30) currentTargetSpeed = Math.max(10, baseSpeed - (30 - pitch) * 3);
-                            document.getElementById('control-mode').textContent = "MODE: TILT";
-                        });
-                    }
-                }).catch(() => {});
-            }
-            
-            requestAnimationFrame(gameLoop);
+        // Custom fail-proof engine timer configuration to bypass watchOS runtime throttling
+        function runFallbackTimer(callback) {
+            return window.requestAnimationFrame(callback) || 
+                   window.webkitRequestAnimationFrame(callback) || 
+                   setTimeout(callback, 1000 / 30);
         }
 
         function setupTouchPedals() {
             const gas = document.getElementById('gas-zone');
             const brake = document.getElementById('brake-zone');
 
-            gas.addEventListener('touchstart', (e) => { e.preventDefault(); currentTargetSpeed = 150; });
+            gas.addEventListener('touchstart', (e) => { e.preventDefault(); currentTargetSpeed = 155; });
             gas.addEventListener('touchend', (e) => { e.preventDefault(); currentTargetSpeed = baseSpeed; });
             brake.addEventListener('touchstart', (e) => { e.preventDefault(); currentTargetSpeed = 15; });
             brake.addEventListener('touchend', (e) => { e.preventDefault(); currentTargetSpeed = baseSpeed; });
@@ -246,8 +185,8 @@
         function getAngle(e) {
             const rect = wheel.getBoundingClientRect();
             const center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const clientX = e.touches ? e.touches.clientX : e.clientX;
+            const clientY = e.touches ? e.touches.clientY : e.clientY;
             return Math.atan2(clientY - center.y, clientX - center.x);
         }
 
@@ -287,8 +226,63 @@
         });
 
         function update() {
-            if (gameOver || !gameActive) return;
+            if (gameOver) return;
 
             speed += (currentTargetSpeed - speed) * 0.08;
             score += Math.floor(speed / 35);
             document.getElementById('score-val').textContent = score;
+            document.getElementById('speed-val').textContent = Math.floor(speed);
+
+            roadTracker += speed * 0.015;
+            if (roadTracker >= 1) roadTracker = 0;
+
+            curveTimer -= speed * 0.01;
+            if (curveTimer <= 0) {
+                curveTimer = Math.random() * 300 + 200;
+                let randTrack = Math.random();
+                if (randTrack < 0.35) targetCurvature = -0.7;
+                else if (randTrack > 0.65) targetCurvature = 0.7;
+                else targetCurvature = 0;
+            }
+            roadCurvature += (targetCurvature - roadCurvature) * 0.015;
+
+            let centrifugalForce = roadCurvature * (speed / 70) * 0.012;
+            let counterSteerDiff = playerX - (roadCurvature * 0.8);
+            
+            if (speed > 75 && Math.abs(playerX) > 0.6 && Math.abs(counterSteerDiff) > 0.8) {
+                isDrifting = true;
+                driftAngle += (playerX * 0.08 - driftAngle) * 0.15;
+                screenShake = Math.max(screenShake, Math.abs(playerX) * 2.5);
+                score += 5; 
+            } else {
+                isDrifting = false;
+                driftAngle *= 0.82; 
+            }
+
+            let realSteerInput = playerX * 0.022;
+            if (isDrifting) realSteerInput *= 0.65; 
+            
+            trackPosition += realSteerInput - centrifugalForce;
+
+            if (Math.abs(trackPosition) > 0.82) {
+                gameOver = true;
+                alert(`OFF ROAD CRASH! Final Score: ${score}`);
+                resetGame();
+                return;
+            }
+
+            spawnTimer++;
+            if (spawnTimer > Math.max(20, 50 - (speed / 4))) {
+                spawnTimer = 0;
+                obstacles.push({
+                    progress: 0, 
+                    lane: Math.floor(Math.random() * 3) - 1, 
+                    color: `hsl(${Math.random() * 360}, 85%, 45%)`
+                });
+            }
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                let obs = obstacles[i];
+                obs.progress += (speed * 0.0001) + (obs.progress * 0.035);
+
+                if (obs.progress >= 1) {
