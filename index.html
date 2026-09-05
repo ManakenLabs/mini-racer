@@ -24,7 +24,6 @@
             font-family: -apple-system, sans-serif;
             padding: 5px;
         }
-        /* HUD Grid Display Overlay */
         #hud {
             display: flex;
             justify-content: space-between;
@@ -37,9 +36,8 @@
             z-index: 5;
         }
         #score-val { color: #34c759; }
-        #tilt-debug { color: #a1a1a6; font-size: 0.7rem; }
+        #control-mode { color: #a1a1a6; font-size: 0.7rem; }
 
-        /* Pseudo-3D Viewport Area */
         #view-wrapper {
             position: relative;
             width: 95vw;
@@ -55,7 +53,6 @@
             display: block;
         }
 
-        /* Permission Calibration Screen */
         #start-overlay {
             position: absolute;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -79,7 +76,6 @@
             margin-top: 15px;
         }
 
-        /* Physical Control Base Grid */
         #wheel-container {
             width: 100%;
             display: flex;
@@ -87,6 +83,7 @@
             align-items: center;
             height: 28vh;
             margin-bottom: 5px;
+            position: relative;
         }
         #steering-wheel {
             width: 85px;
@@ -101,6 +98,7 @@
             box-shadow: inset 0 0 10px rgba(0,0,0,0.9), 0 4px 6px rgba(0,0,0,0.5);
             touch-action: none;
             transition: transform 0.05s linear;
+            z-index: 2;
         }
         #steering-wheel::before {
             content: '';
@@ -110,24 +108,42 @@
             border: 2px solid #555;
             border-radius: 50%;
             position: absolute;
-            z-index: 2;
+            z-index: 3;
         }
         .spoke { position: absolute; background: #2d2d30; }
         .spoke-h { width: 67px; height: 8px; top: 38px; left: 0px; }
         .spoke-v { width: 8px; height: 34px; bottom: 0px; left: 38px; }
+
+        /* Fallback Touch Zones for Throttle/Brake */
+        .touch-pedal {
+            position: absolute;
+            bottom: 0;
+            width: 70px;
+            height: 100%;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.2);
+            font-size: 0.6rem;
+            font-weight: bold;
+            border-radius: 8px;
+        }
+        #brake-zone { left: 5px; background: rgba(255, 59, 48, 0.05); }
+        #gas-zone { right: 5px; background: rgba(52, 199, 89, 0.05); }
     </style>
 </head>
 <body>
 
     <div id="start-overlay">
-        <p>CALIBRATE DRIFT ENGAGEMENT</p>
-        <button class="btn-start" onclick="initSensors()">LAUNCH</button>
+        <p>READY TO DRIVE</p>
+        <button class="btn-start" onclick="startGameCanvas()">LAUNCH</button>
     </div>
 
     <div id="hud">
         <div>SCORE: <span id="score-val">0</span></div>
-        <div id="tilt-debug">TILT: <span id="tilt-val">0°</span></div>
-        <div style="visibility: hidden;"><span id="speed-val">0</span></div>
+        <div id="control-mode">MODE: TOUCH</div>
+        <div><span id="speed-val">0</span> MPH</div>
     </div>
 
     <div id="view-wrapper">
@@ -135,10 +151,12 @@
     </div>
 
     <div id="wheel-container">
+        <div id="brake-zone" class="touch-pedal">BRAKE</div>
         <div id="steering-wheel">
             <div class="spoke spoke-h"></div>
             <div class="spoke spoke-v"></div>
         </div>
+        <div id="gas-zone" class="touch-pedal">GAS</div>
     </div>
 
     <script>
@@ -154,7 +172,6 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        // Mechanical Settings Variables
         let playerX = 0; 
         let score = 0;
         let speed = 20; 
@@ -163,54 +180,49 @@
         let gameOver = false;
         let roadTracker = 0;
 
-        // Curve & Drift Variables
-        let roadCurvature = 0;      // Current local segment curve
-        let targetCurvature = 0;    // Target horizon curve direction
+        let roadCurvature = 0;      
+        let targetCurvature = 0;    
         let curveTimer = 0;
-        let trackPosition = 0;      // Accumulator tracking where car is on the road width-wise
-        let driftAngle = 0;         // Tracks visual tire slide angle offset
+        let trackPosition = 0;      
+        let driftAngle = 0;         
         let isDrifting = false;
         let screenShake = 0;
 
         let obstacles = [];
         let spawnTimer = 0;
 
-        // Hardware Controls Variables
         let isDrawing = false;
         let startAngle = 0;
         let currentRotation = 0;
-        let basePitch = null; 
-        let currentPitch = 0;
 
-        function initSensors() {
+        // Directly opens the game loop and bypasses permission stalls
+        function startGameCanvas() {
+            document.getElementById('start-overlay').style.display = 'none';
+            setupTouchPedals();
+            
+            // Try enabling gyroscope fallback if browser allows it natively
             if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                DeviceOrientationEvent.requestPermission()
-                    .then(response => {
-                        if (response == 'granted') {
-                            window.addEventListener('deviceorientation', handleMotion);
-                            document.getElementById('start-overlay').style.display = 'none';
-                        }
-                    })
-                    .catch(console.error);
-            } else {
-                window.addEventListener('deviceorientation', handleMotion);
-                document.getElementById('start-overlay').style.display = 'none';
+                DeviceOrientationEvent.requestPermission().then(res => {
+                    if(res === 'granted') {
+                        window.addEventListener('deviceorientation', (e) => {
+                            let pitch = e.beta;
+                            if (pitch > 45) currentTargetSpeed = Math.min(160, baseSpeed + (pitch - 45) * 3);
+                            if (pitch < 30) currentTargetSpeed = Math.max(10, baseSpeed - (30 - pitch) * 3);
+                            document.getElementById('control-mode').textContent = "MODE: TILT";
+                        });
+                    }
+                }).catch(() => {});
             }
         }
 
-        function handleMotion(event) {
-            let pitch = event.beta; 
-            if (basePitch === null && pitch !== null) basePitch = pitch; 
-            currentPitch = pitch - basePitch;
-            document.getElementById('tilt-val').textContent = Math.floor(currentPitch) + '°';
+        function setupTouchPedals() {
+            const gas = document.getElementById('gas-zone');
+            const brake = document.getElementById('brake-zone');
 
-            if (currentPitch > 6) { 
-                currentTargetSpeed = Math.min(160, baseSpeed + (currentPitch - 6) * 5);
-            } else if (currentPitch < -6) { 
-                currentTargetSpeed = Math.max(10, baseSpeed + (currentPitch + 6) * 4.5);
-            } else {
-                currentTargetSpeed = baseSpeed;
-            }
+            gas.addEventListener('touchstart', () => { currentTargetSpeed = 150; });
+            gas.addEventListener('touchend', () => { currentTargetSpeed = baseSpeed; });
+            brake.addEventListener('touchstart', () => { currentTargetSpeed = 15; });
+            brake.addEventListener('touchend', () => { currentTargetSpeed = baseSpeed; });
         }
 
         function getAngle(e) {
@@ -259,23 +271,18 @@
             speed += (currentTargetSpeed - speed) * 0.08;
             score += Math.floor(speed / 35);
             document.getElementById('score-val').textContent = score;
+            document.getElementById('speed-val').textContent = Math.floor(speed);
 
             roadTracker += speed * 0.015;
             if (roadTracker >= 1) roadTracker = 0;
 
-            // Handle Dynamic Road Curvature Generation Loops
             curveTimer -= speed * 0.01;
             if (curveTimer <= 0) {
                 curveTimer = Math.random() * 300 + 200;
-                // Alternate between left curves (-0.8), right curves (0.8), or straight paths (0)
                 let randTrack = Math.random();
                 if (randTrack < 0.35) targetCurvature = -0.7;
                 else if (randTrack > 0.65) targetCurvature = 0.7;
                 else targetCurvature = 0;
             }
-            // Interpolate road curvature smoothly over time matching current velocity indices
             roadCurvature += (targetCurvature - roadCurvature) * 0.015;
 
-            // Calculate centrifugal force acting on the car position structure
-            let centrifugalForce = roadCurvature * (speed / 70) * 0.012;
-            
