@@ -43,16 +43,17 @@
 
         #view-wrapper {
             position: relative;
-            width: 95vw;
-            height: 54vh;
+            width: 160px; 
+            height: 110px;
             border: 2px solid #333;
             border-radius: 12px;
             overflow: hidden;
+            background: #05050a;
         }
         canvas {
+            display: block;
             width: 100%;
             height: 100%;
-            display: block;
         }
 
         #wheel-container {
@@ -117,7 +118,7 @@
     </div>
 
     <div id="view-wrapper">
-        <canvas id="gameCanvas"></canvas>
+        <canvas id="gameCanvas" width="160" height="110"></canvas>
     </div>
 
     <div id="wheel-container">
@@ -133,14 +134,6 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const wheel = document.getElementById('steering-wheel');
-
-        function resizeCanvas() {
-            canvas.width = canvas.clientWidth;
-            canvas.height = canvas.clientHeight;
-        }
-        resizeCanvas();
-        window.addEventListener('load', resizeCanvas);
-        window.addEventListener('resize', resizeCanvas);
 
         let playerX = 0; 
         let score = 0;
@@ -164,12 +157,6 @@
         let isDrawing = false;
         let startAngle = 0;
         let currentRotation = 0;
-
-        function runFallbackTimer(callback) {
-            return window.requestAnimationFrame(callback) || 
-                   window.webkitRequestAnimationFrame(callback) || 
-                   setTimeout(callback, 1000 / 30);
-        }
 
         function setupTouchPedals() {
             const gas = document.getElementById('gas-zone');
@@ -290,3 +277,15 @@
                 }
 
                 if (obs.progress > 0.80 && obs.progress < 0.98) {
+                    let obsVisualX = obs.lane * 0.45;
+                    let visualDiff = Math.abs(obsVisualX - trackPosition);
+                    
+                    if (visualDiff < 0.18) {
+                        gameOver = true;
+                        alert(`TRAFFIC CRASH! Score: ${score}`);
+                        resetGame();
+                        break;
+                    }
+                }
+            }
+
