@@ -137,9 +137,9 @@
 
         let playerX = 0; 
         let score = 0;
-        let speed = 40; 
+        let speed = 0; // Starts at 0 until ignition touch triggers
         let baseSpeed = 40;
-        let currentTargetSpeed = 40;
+        let currentTargetSpeed = 0;
         let gameOver = false;
         let roadTracker = 0;
 
@@ -157,18 +157,33 @@
         let isDrawing = false;
         let startAngle = 0;
         let currentRotation = 0;
+        let engineIgnited = false; // Background loops stay paused to satisfy watchOS compliance rules
 
-        function runFallbackTimer(callback) {
-            return setTimeout(callback, 1000 / 30);
+        function triggerEngineIgnition() {
+            if (engineIgnited) return;
+            engineIgnited = true;
+            speed = 40;
+            currentTargetSpeed = 40;
+            // Kick off game loops explicitly inside user interactive callback chain
+            gameLoop(); 
         }
 
         function setupTouchPedals() {
             const gas = document.getElementById('gas-zone');
             const brake = document.getElementById('brake-zone');
 
-            gas.addEventListener('touchstart', (e) => { e.preventDefault(); currentTargetSpeed = 155; });
+            gas.addEventListener('touchstart', (e) => { 
+                e.preventDefault(); 
+                triggerEngineIgnition();
+                currentTargetSpeed = 155; 
+            });
             gas.addEventListener('touchend', (e) => { e.preventDefault(); currentTargetSpeed = baseSpeed; });
-            brake.addEventListener('touchstart', (e) => { e.preventDefault(); currentTargetSpeed = 15; });
+            
+            brake.addEventListener('touchstart', (e) => { 
+                e.preventDefault(); 
+                triggerEngineIgnition();
+                currentTargetSpeed = 15; 
+            });
             brake.addEventListener('touchend', (e) => { e.preventDefault(); currentTargetSpeed = baseSpeed; });
         }
 
@@ -182,6 +197,7 @@
 
         wheel.addEventListener('touchstart', (e) => {
             e.preventDefault();
+            triggerEngineIgnition();
             isDrawing = true;
             startAngle = getAngle(e) - currentRotation;
         });
@@ -216,7 +232,7 @@
         });
 
         function update() {
-            if (gameOver) return;
+            if (gameOver || !engineIgnited) return;
 
             speed += (currentTargetSpeed - speed) * 0.08;
             score += Math.floor(speed / 35);
@@ -273,18 +289,3 @@
 
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 let obs = obstacles[i];
-                obs.progress += (speed * 0.0001) + (obs.progress * 0.035);
-
-                if (obs.progress >= 1) {
-                    obstacles.splice(i, 1);
-                    continue;
-                }
-
-                if (obs.progress > 0.80 && obs.progress < 0.98) {
-                    let obsVisualX = obs.lane * 0.45;
-                    let visualDiff = Math.abs(obsVisualX - trackPosition);
-                    
-                    if (visualDiff < 0.18) {
-                        gameOver = true;
-                        alert(`TRAFFIC CRASH! Score: ${score}`);
-                        resetGame();
