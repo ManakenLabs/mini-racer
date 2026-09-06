@@ -26,7 +26,6 @@
             padding: 2px;
         }
 
-        /* Wearable Top Dashboard */
         #hud {
             display: flex;
             justify-content: space-between;
@@ -41,7 +40,6 @@
         #score-val { color: #00f0ff; }
         #gear-val { color: #ffdf6b; background: #221a00; padding: 0 4px; border-radius: 3px; }
 
-        /* Compact Viewport */
         #view-wrapper {
             position: relative;
             width: 98vw;
@@ -53,7 +51,6 @@
         }
         canvas { width: 100%; height: 100%; display: block; }
 
-        /* Integrated Dual Cluster (RPM + Speed) */
         #dash-cluster {
             width: 100%;
             height: 20vh;
@@ -66,7 +63,6 @@
         }
         #cluster-canvas { width: 150px; height: 36px; display: block; }
 
-        /* Wearable Touch Grid Controls */
         #control-grid {
             width: 100%;
             height: 32vh;
@@ -96,7 +92,6 @@
         #gas-btn { background: linear-gradient(180deg, #07383b, #021a1c); border-color: #0d6e75; color: #52f3ff; }
         #action-btn { background: linear-gradient(180deg, #2b1136, #14041c); border-color: #5d2575; color: #e166ff; }
 
-        /* Overlays */
         #start-overlay, #gameover-overlay {
             position: absolute;
             top: 0; left: 0; width: 100vw; height: 100vh;
@@ -115,6 +110,7 @@
         .btn-start {
             background: #00f0ff; color: #000; border: none; padding: 6px 14px;
             border-radius: 4px; font-size: 0.65rem; font-weight: bold; margin-top: 6px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -123,7 +119,7 @@
     <div id="start-overlay">
         <p>CIVIC COCKPIT</p>
         <div class="sub">COMPACT WRIST LAYOUT<br>GAS/BRAKE ADJUSTS RPM<br>TAP ACT TO BLAST TRAFFIC</div>
-        <button class="btn-start" onclick="initSensors()">DRIVE</button>
+        <button class="btn-start" onclick="startGameEngine()">DRIVE</button>
     </div>
 
     <div id="gameover-overlay" style="display:none;">
@@ -166,15 +162,14 @@
         const segmentLength = 15;
         const totalSegments = 100;
 
-        // Honda Civic 5-Speed Auto Realistic Profile Configs
         let speed = 0; 
-        let rpm = 800; // Idle RPM
+        let rpm = 800; 
         let gear = 1;
         const maxRpm = 6800;
         const redline = 6200;
         
-        // Gear top speeds (km/h conversion ratio matching simulation constraints)
-        const gearRatios =; 
+        // Fixed gear ratios configuration object
+        const gearRatios = { 1: 45, 2: 75, 3: 115, 4: 160, 5: 210 }; 
 
         let gasPressed = false;
         let brakePressed = false;
@@ -197,7 +192,6 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Build Track Loop
         for (let i = 0; i < totalSegments; i++) {
             roadSegments.push({
                 curve: Math.sin(i / 8) * 1.2,
@@ -205,38 +199,60 @@
             });
         }
 
-        function initSensors() {
+        function startGameEngine() {
             document.getElementById('start-overlay').style.display = 'none';
+            
             if (window.DeviceOrientationEvent) {
-                window.addEventListener('deviceorientation', (e) => {
-                    let tilt = e.gamma || 0;
-                    if (tilt > 25) tilt = 25;
-                    if (tilt < -25) tilt = -25;
-                    steeringAngle = tilt;
-                });
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    DeviceOrientationEvent.requestPermission()
+                        .then(state => {
+                            if (state === 'granted') {
+                                window.addEventListener('deviceorientation', handleTilt);
+                            }
+                        }).catch(err => console.log("Sensor fallback active: ", err));
+                } else {
+                    window.addEventListener('deviceorientation', handleTilt);
+                }
             }
             restartGame();
         }
 
-        // Setup Watch Control Inputs
+        function handleTilt(e) {
+            let tilt = e.gamma || 0;
+            if (tilt > 25) tilt = 25;
+            if (tilt < -25) tilt = -25;
+            steeringAngle = tilt;
+        }
+
+        // Support desktop arrows if device orientation flags are missing
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') steeringAngle = -20;
+            if (e.key === 'ArrowRight') steeringAngle = 20;
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') steeringAngle = 0;
+        });
+
         const bind = (el, pressFn, releaseFn) => {
             el.addEventListener('touchstart', (e) => { e.preventDefault(); pressFn(); });
             el.addEventListener('touchend', (e) => { e.preventDefault(); releaseFn(); });
-            el.addEventListener('mousedown', pressFn);
-            window.addEventListener('mouseup', releaseFn);
+            el.addEventListener('mousedown', (e) => { e.preventDefault(); pressFn(); });
+            el.addEventListener('mouseup', (e) => { e.preventDefault(); releaseFn(); });
+            el.addEventListener('mouseleave', (e) => { if (gasPressed || brakePressed) releaseFn(); });
         };
 
         bind(document.getElementById('gas-btn'), () => gasPressed = true, () => gasPressed = false);
         bind(document.getElementById('brake-btn'), () => brakePressed = true, () => brakePressed = false);
+        
         document.getElementById('action-btn').addEventListener('touchstart', (e) => { e.preventDefault(); fireLaser(); });
-        document.getElementById('action-btn').addEventListener('mousedown', fireLaser);
+        document.getElementById('action-btn').addEventListener('mousedown', (e) => { e.preventDefault(); fireLaser(); });
 
         function fireLaser() {
             if (speed > 2) lasers.push({ x: playerX * 0.4, z: 20 });
         }
 
         function restartGame() {
-            score = 0; speed = 0; rpm = 800; gear = 1; playerX = 0;
+            score = 0; speed = 0; rpm = 800; gear = 1; playerX = 0; steeringAngle = 0;
             entities = []; lasers = []; running = true;
             document.getElementById('gameover-overlay').style.display = 'none';
         }
@@ -253,22 +269,4 @@
             let maxSpeedForGear = gearRatios[gear];
             let minSpeedForGear = gear > 1 ? gearRatios[gear - 1] - 5 : 0;
 
-            // Sim Driving Physics (Honda Civic Powertrain profile calculation)
             if (gasPressed) {
-                // Slower realistic simulation ramp up curves
-                let accelerationFactor = (1.1 - (speed / 230)) * 0.22; 
-                speed += accelerationFactor;
-                
-                // Calculate engine RPM mapping calculations
-                let speedRange = maxSpeedForGear - minSpeedForGear;
-                let currentOffset = speed - minSpeedForGear;
-                rpm = 1500 + ((currentOffset / speedRange) * (maxRpm - 1500));
-                
-                if (rpm > redline && gear < 5) { // Auto upshift mechanics
-                    gear++;
-                    rpm = 3200; 
-                }
-            } else if (brakePressed) {
-                speed -= 0.65; // Linear stable deceleration profile
-                rpm -= 150;
-                if (speed < 0) speed = 0;
