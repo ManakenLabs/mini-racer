@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Arcade Console</title>
+    <title>NEON DRIFT // Dashboard POV</title>
     <style>
         * {
             box-sizing: border-box;
@@ -11,231 +11,456 @@
             padding: 0;
             user-select: none;
             -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
         html, body {
-            width: 100%;
-            height: 100%;
-            background-color: #000;
+            background: #000;
+            width: 100vw;
+            height: 100vh;
             overflow: hidden;
-        }
-        body {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
             font-family: -apple-system, sans-serif;
-            padding: 4px;
+            padding: 5px;
         }
+
+        /* HUD Grid Display Overlay */
         #hud {
             display: flex;
             justify-content: space-between;
-            width: 92%;
+            width: 160px;
             color: #fff;
-            font-size: 0.8rem;
+            font-size: 0.6rem;
             font-weight: bold;
             font-variant-numeric: tabular-nums;
-            height: 16px;
+            margin-bottom: 4px;
+            letter-spacing: 0.5px;
         }
-        #score-val { color: #34c759; }
-        #speed-val { color: #ff9500; }
+        #score-val { color: #00f0ff; text-shadow: 0 0 6px #00f0ff; }
+        #tilt-debug { color: #a1a1a6; font-size: 0.55rem; }
 
+        /*
+          Fixed 160x110 watch-frame viewport.
+          Every layer inside (road canvas, dashboard photo, needle canvas, wheel image,
+          pedal zones) is sized to exactly fill this box so they stay pixel-aligned.
+        */
         #view-wrapper {
             position: relative;
-            width: 160px; 
+            width: 160px;
             height: 110px;
-            border: 2px solid #333;
-            border-radius: 12px;
+            border: 2px solid #1e1e2e;
+            border-radius: 10px;
             overflow: hidden;
+            background: #000;
+            box-shadow: 0 0 14px rgba(0,240,255,0.25) inset;
         }
-        canvas {
-            width: 100%;
-            height: 100%;
+
+        #gameCanvas, #needle-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             display: block;
         }
+        #gameCanvas { z-index: 1; }
+        #needle-canvas { z-index: 4; pointer-events: none; }
 
-        #wheel-container {
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 32vh;
-            position: relative;
-        }
-        #steering-wheel {
-            width: 80px;
-            height: 80px;
-            border: 8px solid #2d2d30;
-            border-radius: 50%;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: radial-gradient(circle, #111 30%, #222 70%);
-            box-shadow: inset 0 0 8px rgba(0,0,0,0.9), 0 3px 5px rgba(0,0,0,0.5);
-            touch-action: none;
-            z-index: 2;
-        }
-        #steering-wheel::before {
-            content: '';
-            width: 18px;
-            height: 18px;
-            background: #444;
-            border: 2px solid #555;
-            border-radius: 50%;
+        /* Static interior dashboard photo, layered above the 3D road, below the needle */
+        #dashboard-img {
             position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            pointer-events: none;
             z-index: 3;
+            /* If dashboard.png is missing, this keeps layout from collapsing */
+            background: transparent;
         }
-        .spoke { position: absolute; background: #2d2d30; }
-        .spoke-h { width: 64px; height: 6px; top: 37px; left: 0px; }
-        .spoke-v { width: 6px; height: 32px; bottom: 0px; left: 37px; }
 
-        .touch-pedal {
+        /*
+          Detached steering wheel layer, positioned to match where the wheel sits
+          in the source dashboard photo (~48% across, ~80% down, roughly centered).
+          Only this element rotates on touch/drag - dashboard.png underneath never moves.
+        */
+        #wheel-img {
             position: absolute;
-            bottom: 0;
-            width: 52px;
-            height: 90%;
-            z-index: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: rgba(255,255,255,0.2);
-            font-size: 0.55rem;
-            font-weight: bold;
-            border-radius: 6px;
+            left: 27%;
+            top: 56%;
+            width: 42%;
+            height: 48%;
+            transform-origin: 50% 50%;
+            touch-action: none;
+            z-index: 5;
+            transition: transform 0.05s linear;
         }
-        #brake-zone { left: 4px; background: rgba(255, 59, 48, 0.06); }
-        #gas-zone { right: 4px; background: rgba(52, 199, 89, 0.06); }
+
+        /* GAS / BRAKE touch zones, docked to left/right borders of the viewport */
+        .pedal-zone {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 18%;
+            z-index: 6;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 4px;
+            font-size: 0.42rem;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            transition: background 0.1s linear;
+        }
+        #brake-zone {
+            left: 0;
+            color: #ff3b5c;
+            background: linear-gradient(to right, rgba(255,59,92,0.12), transparent);
+        }
+        #gas-zone {
+            right: 0;
+            color: #00f0ff;
+            background: linear-gradient(to left, rgba(0,240,255,0.12), transparent);
+        }
+        .pedal-zone.active#brake-zone { background: linear-gradient(to right, rgba(255,59,92,0.4), transparent); }
+        .pedal-zone.active#gas-zone { background: linear-gradient(to left, rgba(0,240,255,0.4), transparent); }
+
+        /* Permission Calibration / Game Over Screens */
+        #start-overlay, #gameover-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(4,2,10,0.94);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            font-weight: bold;
+            text-align: center;
+            padding: 0 20px;
+        }
+        #start-overlay p, #gameover-overlay p {
+            color: #00f0ff;
+            text-shadow: 0 0 8px rgba(0,240,255,0.7);
+            letter-spacing: 1px;
+            font-size: 0.85rem;
+        }
+        #gameover-overlay { display: none; }
+        #gameover-overlay .final-score {
+            color: #ff2fd0;
+            text-shadow: 0 0 10px rgba(255,47,208,0.8);
+            font-size: 1.6rem;
+            margin: 8px 0 16px;
+        }
+        .btn-start {
+            background: linear-gradient(180deg, #00f0ff, #0090a8);
+            color: #001014;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-top: 15px;
+            box-shadow: 0 0 12px rgba(0,240,255,0.6);
+        }
+        .btn-start:active { opacity: 0.7; }
     </style>
 </head>
 <body>
 
+    <div id="start-overlay">
+        <p>CALIBRATE DRIFT ENGAGEMENT</p>
+        <button class="btn-start" onclick="initSensors()">LAUNCH</button>
+    </div>
+
+    <div id="gameover-overlay">
+        <p>WIPEOUT</p>
+        <div class="final-score" id="final-score-val">0</div>
+        <button class="btn-start" onclick="restartGame()">RESTART</button>
+    </div>
+
     <div id="hud">
         <div>SCORE: <span id="score-val">0</span></div>
-        <div><span id="speed-val">0</span> MPH</div>
+        <div id="tilt-debug">TILT: <span id="tilt-val">0°</span></div>
+        <div style="visibility: hidden;"><span id="speed-val">0</span></div>
     </div>
 
     <div id="view-wrapper">
-        <canvas id="gameCanvas" width="160" height="110"></canvas>
-    </div>
+        <canvas id="gameCanvas"></canvas>
 
-    <div id="wheel-container">
-        <div id="brake-zone" class="touch-pedal">BRAKE</div>
-        <div id="steering-wheel">
-            <div class="spoke spoke-h"></div>
-            <div class="spoke spoke-v"></div>
-        </div>
-        <div id="gas-zone" class="touch-pedal">GAS</div>
+        <!-- Static interior shot. Replace src with your own exported crop. -->
+        <img id="dashboard-img" src="dashboard.png" alt=""
+             onerror="this.style.background='#050508';">
+
+        <!-- Transparent overlay canvas the needle is drawn on each frame -->
+        <canvas id="needle-canvas"></canvas>
+
+        <!-- Isolated wheel cutout - only this rotates -->
+        <img id="wheel-img" src="wheel.png" alt=""
+             onerror="this.style.background='transparent';">
+
+        <div class="pedal-zone" id="brake-zone">BRK</div>
+        <div class="pedal-zone" id="gas-zone">GAS</div>
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const wheel = document.getElementById('steering-wheel');
+        const needleCanvas = document.getElementById('needle-canvas');
+        const needleCtx = needleCanvas.getContext('2d');
+        const wheelImg = document.getElementById('wheel-img');
+        const scoreEl = document.getElementById('score-val');
+        const tiltEl = document.getElementById('tilt-val');
+        const startOverlay = document.getElementById('start-overlay');
+        const gameoverOverlay = document.getElementById('gameover-overlay');
+        const finalScoreEl = document.getElementById('final-score-val');
+        const gasZone = document.getElementById('gas-zone');
+        const brakeZone = document.getElementById('brake-zone');
 
-        let playerX = 0; 
+        function resizeCanvases() {
+            [canvas, needleCanvas].forEach(c => {
+                c.width = c.clientWidth;
+                c.height = c.clientHeight;
+            });
+        }
+        window.addEventListener('load', resizeCanvases);
+        window.addEventListener('resize', resizeCanvases);
+        resizeCanvases();
+
+        // ---------- Tunable overlay geometry ----------
+        // These fractions are eyeballed against the reference dashboard photo.
+        // Re-measure and adjust once you export your final dashboard.png / wheel.png crops.
+
+        // Speedometer dial location (the illuminated amber-ringed gauge, left of the two
+        // large dials visible through the wheel rim in the source photo).
+        const SPEEDO_CX_FRAC = 0.475;   // center x, fraction of container width
+        const SPEEDO_CY_FRAC = 0.83;    // center y, fraction of container height
+        const SPEEDO_R_FRAC  = 0.075;   // needle length, fraction of container width
+        const SPEEDO_START_DEG = 180;   // needle angle at 0 MPH (pointing left)
+        const SPEEDO_END_DEG   = 0;     // needle angle at MAX_SPEED (pointing right)
+
+        // Height at which the dashboard artwork's windshield/hood line sits.
+        // Road and traffic are hard-clipped above this line so nothing is ever drawn
+        // "through" the dashboard photo.
+        const WINDSHIELD_BOUNDARY_FRAC = 0.56;
+
+        // Mechanical Settings Variables
+        let playerX = 0;
         let score = 0;
-        let speed = 50; 
-        let baseSpeed = 50;
-        let currentTargetSpeed = 50;
+        let speed = 20;
+        let baseSpeed = 40;
+        let currentTargetSpeed = 40;
         let gameOver = false;
         let roadTracker = 0;
+        const MAX_SPEED = 160;
 
-        let roadCurvature = 0;      
-        let targetCurvature = 0;    
-        let curveTimer = 0;
-        let trackPosition = 0;      
-        let driftAngle = 0;         
+        // Curve & Drift Variables
+        let roadCurvature = 0;
+        let targetCurvature = 0;
+        let curveTimer = 200;
+        let driftAngle = 0;
         let isDrifting = false;
         let screenShake = 0;
 
         let obstacles = [];
-        let spawnTimer = 0;
+        let spawnTimer = 120;
 
+        // Hardware Controls Variables
         let isDrawing = false;
         let startAngle = 0;
         let currentRotation = 0;
+        let basePitch = null;
+        let currentPitch = 0;
+        let sensorsActive = false;
+        let touchGas = false;
+        let touchBrake = false;
 
-        // Clean event setups for touch zones
-        function setupTouchPedals() {
-            const gas = document.getElementById('gas-zone');
-            const brake = document.getElementById('brake-zone');
+        const LANES = [-0.55, 0, 0.55];
+        const ROAD_WIDTH_FRAC = 0.9;
+        const VEHICLE_TYPES = ['coupe', 'truck'];
 
-            // Touch events for mobile/watch
-            gas.addEventListener('touchstart', (e) => { e.preventDefault(); currentTargetSpeed = 150; });
-            gas.addEventListener('touchend', (e) => { e.preventDefault(); currentTargetSpeed = baseSpeed; });
-            brake.addEventListener('touchstart', (e) => { e.preventDefault(); currentTargetSpeed = 15; });
-            brake.addEventListener('touchend', (e) => { e.preventDefault(); currentTargetSpeed = baseSpeed; });
-
-            // Mouse event fallbacks for testing on Mac/Windows browsers
-            gas.addEventListener('mousedown', () => { currentTargetSpeed = 150; });
-            gas.addEventListener('mouseup', () => { currentTargetSpeed = baseSpeed; });
-            brake.addEventListener('mousedown', () => { currentTargetSpeed = 15; });
-            brake.addEventListener('mouseup', () => { currentTargetSpeed = baseSpeed; });
+        function initSensors() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(response => {
+                        if (response == 'granted') {
+                            window.addEventListener('deviceorientation', handleMotion);
+                        }
+                        beginGame();
+                    })
+                    .catch(() => beginGame());
+            } else if (typeof DeviceOrientationEvent !== 'undefined') {
+                window.addEventListener('deviceorientation', handleMotion);
+                beginGame();
+            } else {
+                beginGame();
+            }
         }
 
+        function beginGame() {
+            sensorsActive = true;
+            startOverlay.style.display = 'none';
+            requestAnimationFrame(loop);
+        }
+
+        function handleMotion(event) {
+            let pitch = event.beta;
+            if (pitch === null || pitch === undefined) return;
+            if (basePitch === null) basePitch = pitch;
+            currentPitch = pitch - basePitch;
+            tiltEl.textContent = Math.floor(currentPitch) + '°';
+
+            if (currentPitch > 6) {
+                currentTargetSpeed = Math.min(MAX_SPEED, baseSpeed + (currentPitch - 6) * 5);
+            } else if (currentPitch < -6) {
+                currentTargetSpeed = Math.max(10, baseSpeed + (currentPitch + 6) * 4.5);
+            } else {
+                currentTargetSpeed = baseSpeed;
+            }
+        }
+
+        // --- Keyboard fallback (desktop testing: Up/Down = gas/brake, Left/Right = steer) ---
+        const keys = {};
+        window.addEventListener('keydown', (e) => { keys[e.key] = true; });
+        window.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+        function handleKeyboardFallback() {
+            if (keys['ArrowUp']) {
+                currentTargetSpeed = Math.min(MAX_SPEED, baseSpeed + 60);
+            } else if (keys['ArrowDown']) {
+                currentTargetSpeed = Math.max(10, baseSpeed - 40);
+            } else if (!sensorsActive || basePitch === null) {
+                currentTargetSpeed = baseSpeed;
+            }
+            if (keys['ArrowLeft']) {
+                currentRotation = Math.max(-1.3, currentRotation - 0.05);
+                wheelImg.style.transform = `rotate(${currentRotation}rad)`;
+                playerX = -currentRotation / 1.3;
+            } else if (keys['ArrowRight']) {
+                currentRotation = Math.min(1.3, currentRotation + 0.05);
+                wheelImg.style.transform = `rotate(${currentRotation}rad)`;
+                playerX = -currentRotation / 1.3;
+            }
+        }
+
+        // --- GAS / BRAKE touch zones ---
+        function bindPedal(el, onDown, onUp) {
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); onDown(); el.classList.add('active'); }, { passive: false });
+            el.addEventListener('touchend', (e) => { e.preventDefault(); onUp(); el.classList.remove('active'); }, { passive: false });
+            el.addEventListener('mousedown', () => { onDown(); el.classList.add('active'); });
+            el.addEventListener('mouseup', () => { onUp(); el.classList.remove('active'); });
+            el.addEventListener('mouseleave', () => { onUp(); el.classList.remove('active'); });
+        }
+        bindPedal(gasZone, () => { touchGas = true; }, () => { touchGas = false; });
+        bindPedal(brakeZone, () => { touchBrake = true; }, () => { touchBrake = false; });
+
+        // --- Detached wheel layer: rotates independently, dashboard art never moves ---
         function getAngle(e) {
-            const rect = wheel.getBoundingClientRect();
+            const rect = wheelImg.getBoundingClientRect();
             const center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-            // Read mouse coordinates if touch properties are absent
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             return Math.atan2(clientY - center.y, clientX - center.x);
         }
 
-        // Combined Touch and Mouse handling for true cross-platform functionality
-        function startSteer(e) {
-            if(e.touches) e.preventDefault();
+        function steerStart(e) {
+            e.preventDefault();
             isDrawing = true;
             startAngle = getAngle(e) - currentRotation;
         }
-        function moveSteer(e) {
+        function steerMove(e) {
             if (!isDrawing) return;
-            if(e.touches) e.preventDefault();
+            e.preventDefault();
             const angle = getAngle(e);
             currentRotation = angle - startAngle;
-            
+
             if (currentRotation > 1.3) currentRotation = 1.3;
             if (currentRotation < -1.3) currentRotation = -1.3;
 
-            wheel.style.transform = `rotate(${currentRotation}rad)`;
-            playerX = -currentRotation * 1.8;
+            wheelImg.style.transform = `rotate(${currentRotation}rad)`;
+            playerX = -currentRotation / 1.3;
         }
-        function stopSteer() {
-            if (!isDrawing) return;
+        function steerEnd() {
             isDrawing = false;
             const snapBack = setInterval(() => {
                 if (isDrawing) { clearInterval(snapBack); return; }
-                currentRotation *= 0.75;
-                playerX *= 0.75;
-                wheel.style.transform = `rotate(${currentRotation}rad)`;
+                currentRotation *= 0.8;
+                playerX *= 0.8;
+                wheelImg.style.transform = `rotate(${currentRotation}rad)`;
                 if (Math.abs(currentRotation) < 0.01) {
                     currentRotation = 0; playerX = 0;
-                    wheel.style.transform = 'rotate(0rad)';
+                    wheelImg.style.transform = 'rotate(0rad)';
                     clearInterval(snapBack);
                 }
             }, 30);
         }
 
-        wheel.addEventListener('touchstart', startSteer);
-        window.addEventListener('touchmove', moveSteer);
-        window.addEventListener('touchend', stopSteer);
+        wheelImg.addEventListener('touchstart', steerStart, { passive: false });
+        window.addEventListener('touchmove', steerMove, { passive: false });
+        window.addEventListener('touchend', steerEnd);
+        wheelImg.addEventListener('mousedown', steerStart);
+        window.addEventListener('mousemove', steerMove);
+        window.addEventListener('mouseup', steerEnd);
 
-        wheel.addEventListener('mousedown', startSteer);
-        window.addEventListener('mousemove', moveSteer);
-        window.addEventListener('mouseup', stopSteer);
+        function resetState() {
+            playerX = 0;
+            score = 0;
+            speed = 20;
+            currentTargetSpeed = baseSpeed;
+            gameOver = false;
+            roadTracker = 0;
+            roadCurvature = 0;
+            targetCurvature = 0;
+            curveTimer = 200;
+            driftAngle = 0;
+            isDrifting = false;
+            screenShake = 0;
+            obstacles = [];
+            spawnTimer = 120;
+            currentRotation = 0;
+            touchGas = false;
+            touchBrake = false;
+            wheelImg.style.transform = 'rotate(0rad)';
+            scoreEl.textContent = '0';
+        }
+
+        function restartGame() {
+            resetState();
+            gameoverOverlay.style.display = 'none';
+        }
+
+        function triggerCrash() {
+            gameOver = true;
+            screenShake = 24;
+            finalScoreEl.textContent = score;
+            setTimeout(() => { gameoverOverlay.style.display = 'flex'; }, 300);
+        }
+
+        // Perspective helpers: t = 0 at horizon, t = 1 at the windshield boundary (near camera)
+        function roadCenterX(t, w) {
+            const curveOffset = roadCurvature * Math.pow(1 - t, 2) * w * 0.9;
+            const steerOffset = -playerX * (w * ROAD_WIDTH_FRAC * 0.5) * t;
+            return w / 2 + curveOffset + steerOffset;
+        }
+        function roadWidthAt(t, w) {
+            return w * ROAD_WIDTH_FRAC * t;
+        }
 
         function update() {
             if (gameOver) return;
 
+            handleKeyboardFallback();
+            if (touchGas) currentTargetSpeed = MAX_SPEED;
+            else if (touchBrake) currentTargetSpeed = Math.max(8, baseSpeed - 50);
+
             speed += (currentTargetSpeed - speed) * 0.08;
             score += Math.floor(speed / 35);
-            document.getElementById('score-val').textContent = score;
-            document.getElementById('speed-val').textContent = Math.floor(speed);
+            scoreEl.textContent = score;
 
             roadTracker += speed * 0.015;
-            if (roadTracker >= 1) roadTracker = 0;
+            if (roadTracker >= 1) roadTracker -= 1;
 
-            curveTimer -= speed * 0.01;
+            curveTimer -= speed * 0.05;
             if (curveTimer <= 0) {
                 curveTimer = Math.random() * 300 + 200;
                 let randTrack = Math.random();
@@ -243,36 +468,259 @@
                 else if (randTrack > 0.65) targetCurvature = 0.7;
                 else targetCurvature = 0;
             }
-            roadCurvature += (targetCurvature - roadCurvature) * 0.015;
+            roadCurvature += (targetCurvature - roadCurvature) * 0.02;
 
-            let centrifugalForce = roadCurvature * (speed / 70) * 0.012;
-            let counterSteerDiff = playerX - (roadCurvature * 0.8);
-            
-            if (speed > 75 && Math.abs(playerX) > 0.6 && Math.abs(counterSteerDiff) > 0.8) {
-                isDrifting = true;
-                driftAngle += (playerX * 0.08 - driftAngle) * 0.15;
-                screenShake = Math.max(screenShake, Math.abs(playerX) * 2.5);
-                score += 5; 
-            } else {
-                isDrifting = false;
-                driftAngle *= 0.82; 
+            driftAngle += (currentRotation - driftAngle) * 0.15;
+            isDrifting = Math.abs(currentRotation - driftAngle) > 0.1 && speed > 90;
+            if (isDrifting) score += 1;
+
+            spawnTimer -= speed * 0.06;
+            if (spawnTimer <= 0) {
+                spawnTimer = Math.random() * 75 + 60;
+                const lane = LANES[Math.floor(Math.random() * LANES.length)];
+                const type = VEHICLE_TYPES[Math.floor(Math.random() * VEHICLE_TYPES.length)];
+                const hue = Math.random() > 0.5 ? '#ff2fd0' : '#00f0ff';
+                obstacles.push({ lane, z: 1, type, hue, passed: false });
             }
 
-            let realSteerInput = playerX * 0.022;
-            if (isDrifting) realSteerInput *= 0.65; 
-            
-            trackPosition += realSteerInput - centrifugalForce;
-
-            if (Math.abs(trackPosition) > 0.82) {
-                gameOver = true;
-                alert(`OFF ROAD CRASH! Score: ${score}`);
-                resetGame();
-                return;
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const o = obstacles[i];
+                o.z -= speed * 0.0016;
+                if (o.z <= 0.08 && o.z > -0.05 && !o.passed) {
+                    const carLaneX = playerX * 0.55;
+                    if (Math.abs(carLaneX - o.lane) < 0.34) {
+                        o.passed = true;
+                        triggerCrash();
+                    }
+                }
+                // Obstacle has reached the console boundary - remove it
+                if (o.z <= -0.05) {
+                    obstacles.splice(i, 1);
+                }
             }
 
-            spawnTimer++;
-            if (spawnTimer > Math.max(20, 50 - (speed / 4))) {
-                spawnTimer = 0;
-                obstacles.push({
-                    progress: 0, 
-                    lane: Math.floor(Math.random() * 3) - 1, 
+            if (screenShake > 0) screenShake *= 0.9;
+        }
+
+        // ---------- MAIN VIEWPORT DRAWING (road + traffic, clipped above the dashboard photo) ----------
+
+        function drawSky(w, boundaryY) {
+            const horizonY = boundaryY * 0.34;
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
+            skyGrad.addColorStop(0, '#0a0316');
+            skyGrad.addColorStop(0.6, '#2b0f4a');
+            skyGrad.addColorStop(1, '#ff2fd0');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, w, horizonY);
+
+            ctx.save();
+            ctx.shadowColor = '#ffdf6b';
+            ctx.shadowBlur = 14;
+            ctx.fillStyle = '#ffdf6b';
+            ctx.beginPath();
+            ctx.arc(w / 2, horizonY - 1, w * 0.12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.fillStyle = '#12042a';
+            let bx = -20;
+            let seed = 13;
+            while (bx < w + 20) {
+                seed = (seed * 9301 + 49297) % 233280;
+                const bw = 8 + (seed % 16);
+                seed = (seed * 9301 + 49297) % 233280;
+                const bh = 5 + (seed % 26);
+                ctx.fillRect(bx, horizonY - bh, bw, bh);
+                bx += bw + 2;
+            }
+        }
+
+        function drawRoad(w, boundaryY) {
+            const horizonFrac = 0.34;
+            const BANDS = 60;
+            for (let i = 0; i < BANDS; i++) {
+                const t0 = Math.pow(i / BANDS, 1.6);
+                const t1 = Math.pow((i + 1) / BANDS, 1.6);
+                const y0 = boundaryY * horizonFrac + t0 * boundaryY * (1 - horizonFrac);
+                const y1 = boundaryY * horizonFrac + t1 * boundaryY * (1 - horizonFrac);
+                const tMid = (t0 + t1) / 2;
+
+                const groundShade = Math.floor((tMid * 12 + roadTracker * 12)) % 2 === 0 ? '#140a24' : '#1a0e2e';
+                ctx.fillStyle = groundShade;
+                ctx.fillRect(0, y0, w, (y1 - y0) + 1);
+
+                const cx = roadCenterX(tMid, w);
+                const rw = roadWidthAt(tMid, w);
+                ctx.fillStyle = '#20202a';
+                ctx.fillRect(cx - rw / 2, y0, rw, (y1 - y0) + 1);
+
+                const rumbleShade = Math.floor((tMid * 16 + roadTracker * 16)) % 2 === 0 ? '#ff2fd0' : '#eeeeee';
+                const edgeW = Math.max(1, rw * 0.04);
+                ctx.fillStyle = rumbleShade;
+                ctx.fillRect(cx - rw / 2, y0, edgeW, (y1 - y0) + 1);
+                ctx.fillRect(cx + rw / 2 - edgeW, y0, edgeW, (y1 - y0) + 1);
+
+                if (Math.floor((tMid * 20 + roadTracker * 20)) % 2 === 0) {
+                    ctx.fillStyle = '#00f0ff';
+                    const dashW = Math.max(1, rw * 0.018);
+                    ctx.fillRect(cx - dashW / 2, y0, dashW, (y1 - y0) + 1);
+                }
+            }
+        }
+
+        function drawTaillights(x, y, spread, glowColor) {
+            ctx.save();
+            ctx.shadowColor = glowColor;
+            ctx.shadowBlur = 6;
+            ctx.fillStyle = glowColor;
+            const r = Math.max(0.6, spread * 0.09);
+            ctx.beginPath();
+            ctx.arc(x - spread * 0.32, y, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(x + spread * 0.32, y, r, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawCoupe(x, y, size, hue) {
+            ctx.save();
+            ctx.fillStyle = '#0d0d14';
+            ctx.strokeStyle = hue;
+            ctx.lineWidth = Math.max(0.6, size * 0.02);
+            ctx.shadowColor = hue;
+            ctx.shadowBlur = size * 0.12;
+
+            ctx.beginPath();
+            ctx.moveTo(x - size * 0.5, y);
+            ctx.lineTo(x - size * 0.42, y - size * 0.32);
+            ctx.lineTo(x - size * 0.18, y - size * 0.46);
+            ctx.lineTo(x + size * 0.18, y - size * 0.46);
+            ctx.lineTo(x + size * 0.42, y - size * 0.32);
+            ctx.lineTo(x + size * 0.5, y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            drawTaillights(x, y - size * 0.06, size, '#ff1f4a');
+            ctx.restore();
+        }
+
+        function drawTruck(x, y, size, hue) {
+            ctx.save();
+            ctx.fillStyle = '#101018';
+            ctx.strokeStyle = hue;
+            ctx.lineWidth = Math.max(0.6, size * 0.02);
+            ctx.shadowColor = hue;
+            ctx.shadowBlur = size * 0.12;
+
+            ctx.beginPath();
+            ctx.rect(x - size * 0.46, y - size * 0.85, size * 0.92, size * 0.85);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = hue;
+            ctx.globalAlpha = 0.25;
+            ctx.fillRect(x - size * 0.4, y - size * 0.8, size * 0.8, size * 0.14);
+            ctx.globalAlpha = 1;
+
+            drawTaillights(x, y - size * 0.12, size * 1.05, '#ff1f4a');
+            ctx.restore();
+        }
+
+        function drawObstacles(w, boundaryY) {
+            const horizonFrac = 0.34;
+            for (const o of obstacles) {
+                if (o.z <= 0 || o.z > 1) continue;
+                const t = 1 - o.z;
+                const cx = roadCenterX(t, w);
+                const rw = roadWidthAt(t, w);
+                const yBase = boundaryY * horizonFrac + t * boundaryY * (1 - horizonFrac);
+                // Exponential scale-up: barely visible at the horizon, ballooning fast
+                // as they approach the windshield/console boundary.
+                const size = Math.max(2, w * (0.012 + 0.5 * Math.pow(t, 3)));
+                const x = cx + o.lane * rw * 0.32;
+
+                if (o.type === 'truck') {
+                    drawTruck(x, yBase, size, o.hue);
+                } else {
+                    drawCoupe(x, yBase, size, o.hue);
+                }
+            }
+        }
+
+        function draw() {
+            const w = canvas.width, h = canvas.height;
+            const boundaryY = h * WINDSHIELD_BOUNDARY_FRAC;
+
+            ctx.clearRect(0, 0, w, h);
+            ctx.save();
+            if (screenShake > 0.3) {
+                ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+            }
+
+            // Hard clip: nothing is ever drawn below the windshield boundary, so
+            // road/traffic geometry can never poke out from behind the dashboard photo.
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, 0, w, boundaryY);
+            ctx.clip();
+
+            drawSky(w, boundaryY);
+            drawRoad(w, boundaryY);
+            drawObstacles(w, boundaryY);
+
+            ctx.restore();
+
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(20,0,10,0.4)';
+                ctx.fillRect(0, 0, w, boundaryY);
+            }
+            ctx.restore();
+        }
+
+        // ---------- NEEDLE OVERLAY (drawn directly on top of the photographed gauge) ----------
+
+        function drawNeedle() {
+            const w = needleCanvas.width, h = needleCanvas.height;
+            needleCtx.clearRect(0, 0, w, h);
+
+            const cx = w * SPEEDO_CX_FRAC;
+            const cy = h * SPEEDO_CY_FRAC;
+            const r = w * SPEEDO_R_FRAC;
+
+            const speedClamped = Math.max(0, Math.min(MAX_SPEED, speed));
+            const frac = speedClamped / MAX_SPEED;
+            const angleDeg = SPEEDO_START_DEG + (SPEEDO_END_DEG - SPEEDO_START_DEG) * frac;
+            const angleRad = angleDeg * Math.PI / 180;
+
+            const nx = cx + Math.cos(angleRad) * r;
+            const ny = cy - Math.sin(angleRad) * r;
+
+            needleCtx.save();
+            needleCtx.strokeStyle = '#ff1f3d';
+            needleCtx.shadowColor = '#ff1f3d';
+            needleCtx.shadowBlur = 6;
+            needleCtx.lineWidth = 1.6;
+            needleCtx.lineCap = 'round';
+            needleCtx.beginPath();
+            needleCtx.moveTo(cx, cy);
+            needleCtx.lineTo(nx, ny);
+            needleCtx.stroke();
+
+            needleCtx.fillStyle = '#ff1f3d';
+            needleCtx.beginPath();
+            needleCtx.arc(cx, cy, 1.6, 0, Math.PI * 2);
+            needleCtx.fill();
+            needleCtx.restore();
+        }
+
+        function loop() {
+            update();
+            draw();
+            drawNeedle();
+            requestAnimationFrame(loop);
+        }
+    </script>
+</body>
+</html>
