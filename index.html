@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Drift Console</title>
+    <title>3D Arcade Console</title>
     <style>
         * {
             box-sizing: border-box;
@@ -11,7 +11,6 @@
             padding: 0;
             user-select: none;
             -webkit-user-select: none;
-            touch-action: manipulation;
         }
         html, body {
             width: 100%;
@@ -36,7 +35,6 @@
             font-weight: bold;
             font-variant-numeric: tabular-nums;
             height: 16px;
-            z-index: 5;
         }
         #score-val { color: #34c759; }
         #speed-val { color: #ff9500; }
@@ -48,12 +46,11 @@
             border: 2px solid #333;
             border-radius: 12px;
             overflow: hidden;
-            background: #05050a;
         }
         canvas {
-            display: block;
             width: 100%;
             height: 100%;
+            display: block;
         }
 
         #wheel-container {
@@ -137,9 +134,9 @@
 
         let playerX = 0; 
         let score = 0;
-        let speed = 0; // Starts at 0 until ignition touch triggers
-        let baseSpeed = 40;
-        let currentTargetSpeed = 0;
+        let speed = 50; 
+        let baseSpeed = 50;
+        let currentTargetSpeed = 50;
         let gameOver = false;
         let roadTracker = 0;
 
@@ -157,54 +154,43 @@
         let isDrawing = false;
         let startAngle = 0;
         let currentRotation = 0;
-        let engineIgnited = false; // Background loops stay paused to satisfy watchOS compliance rules
 
-        function triggerEngineIgnition() {
-            if (engineIgnited) return;
-            engineIgnited = true;
-            speed = 40;
-            currentTargetSpeed = 40;
-            // Kick off game loops explicitly inside user interactive callback chain
-            gameLoop(); 
-        }
-
+        // Clean event setups for touch zones
         function setupTouchPedals() {
             const gas = document.getElementById('gas-zone');
             const brake = document.getElementById('brake-zone');
 
-            gas.addEventListener('touchstart', (e) => { 
-                e.preventDefault(); 
-                triggerEngineIgnition();
-                currentTargetSpeed = 155; 
-            });
+            // Touch events for mobile/watch
+            gas.addEventListener('touchstart', (e) => { e.preventDefault(); currentTargetSpeed = 150; });
             gas.addEventListener('touchend', (e) => { e.preventDefault(); currentTargetSpeed = baseSpeed; });
-            
-            brake.addEventListener('touchstart', (e) => { 
-                e.preventDefault(); 
-                triggerEngineIgnition();
-                currentTargetSpeed = 15; 
-            });
+            brake.addEventListener('touchstart', (e) => { e.preventDefault(); currentTargetSpeed = 15; });
             brake.addEventListener('touchend', (e) => { e.preventDefault(); currentTargetSpeed = baseSpeed; });
+
+            // Mouse event fallbacks for testing on Mac/Windows browsers
+            gas.addEventListener('mousedown', () => { currentTargetSpeed = 150; });
+            gas.addEventListener('mouseup', () => { currentTargetSpeed = baseSpeed; });
+            brake.addEventListener('mousedown', () => { currentTargetSpeed = 15; });
+            brake.addEventListener('mouseup', () => { currentTargetSpeed = baseSpeed; });
         }
 
         function getAngle(e) {
             const rect = wheel.getBoundingClientRect();
             const center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-            const clientX = e.touches ? e.touches.clientX : e.clientX;
-            const clientY = e.touches ? e.touches.clientY : e.clientY;
+            // Read mouse coordinates if touch properties are absent
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
             return Math.atan2(clientY - center.y, clientX - center.x);
         }
 
-        wheel.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            triggerEngineIgnition();
+        // Combined Touch and Mouse handling for true cross-platform functionality
+        function startSteer(e) {
+            if(e.touches) e.preventDefault();
             isDrawing = true;
             startAngle = getAngle(e) - currentRotation;
-        });
-
-        window.addEventListener('touchmove', (e) => {
+        }
+        function moveSteer(e) {
             if (!isDrawing) return;
-            e.preventDefault();
+            if(e.touches) e.preventDefault();
             const angle = getAngle(e);
             currentRotation = angle - startAngle;
             
@@ -213,9 +199,8 @@
 
             wheel.style.transform = `rotate(${currentRotation}rad)`;
             playerX = -currentRotation * 1.8;
-        });
-
-        window.addEventListener('touchend', (e) => {
+        }
+        function stopSteer() {
             if (!isDrawing) return;
             isDrawing = false;
             const snapBack = setInterval(() => {
@@ -229,10 +214,18 @@
                     clearInterval(snapBack);
                 }
             }, 30);
-        });
+        }
+
+        wheel.addEventListener('touchstart', startSteer);
+        window.addEventListener('touchmove', moveSteer);
+        window.addEventListener('touchend', stopSteer);
+
+        wheel.addEventListener('mousedown', startSteer);
+        window.addEventListener('mousemove', moveSteer);
+        window.addEventListener('mouseup', stopSteer);
 
         function update() {
-            if (gameOver || !engineIgnited) return;
+            if (gameOver) return;
 
             speed += (currentTargetSpeed - speed) * 0.08;
             score += Math.floor(speed / 35);
@@ -283,9 +276,3 @@
                 obstacles.push({
                     progress: 0, 
                     lane: Math.floor(Math.random() * 3) - 1, 
-                    color: `hsl(${Math.random() * 360}, 85%, 45%)`
-                });
-            }
-
-            for (let i = obstacles.length - 1; i >= 0; i--) {
-                let obs = obstacles[i];
