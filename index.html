@@ -153,8 +153,8 @@
         <button id="play-buttons-btn" class="menu-btn">PLAY WITH BUTTONS / KEYS</button>
         <button id="play-tilt-btn" class="menu-btn" style="background: #00aa66; box-shadow: 0 4px 0 #005522;">PLAY ON IPHONE (TILT)</button>
         
-        <p id="mode-desc" style="font-size: 11px; margin-top: 20px; color: #aaa; line-height: 1.4; max-width: 85%;">
-            Select a mode to begin climbing!
+        <p style="font-size: 11px; margin-top: 20px; color: #aaa; line-height: 1.4; max-width: 85%;">
+            Click a button to start climbing!
         </p>
     </div>
 </div>
@@ -178,23 +178,17 @@ let baseScrollSpeed = 0.35;
 
 // Entities
 let player = {
-    x: 180,
-    y: 400,
-    width: 32,
-    height: 40,
-    vx: 0,
-    vy: 0,
-    speed: 0.45,
-    maxVx: 7.5,
-    friction: 0.88,
-    gravity: 0.42,
+    x: 180, y: 400,
+    width: 32, height: 40,
+    vx: 0, vy: 0,
+    speed: 0.45, maxVx: 7.5,
+    friction: 0.88, gravity: 0.42,
     jumpForce: -9.5,
-    isGrounded: false,
-    facing: 1
+    isGrounded: false, facing: 1
 };
 
 let platforms = [];
-const PLATFORM_THICKNESS = 32; // Kept thick as requested!
+const PLATFORM_THICKNESS = 32;
 
 // Combo & Spark Particle System
 let comboActive = false;
@@ -209,9 +203,8 @@ let useGyro = false;
 let tiltAngle = 0;
 let moveLeft = false;
 let moveRight = false;
-let keys = {};
 
-// DOM Elements
+// UI Handles
 const menuOverlay = document.getElementById('menu-overlay');
 const scoreDisplay = document.getElementById('score-display');
 const floorDisplay = document.getElementById('floor-display');
@@ -220,11 +213,45 @@ const comboBar = document.getElementById('combo-bar');
 const comboText = document.getElementById('combo-text');
 const onScreenButtons = document.getElementById('onScreenButtons');
 
-// Button interaction maps
+// Core Launch Hook (Safe from local file permission blockers)
+function initGame(gyroRequested) {
+    if (gyroRequested) {
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            DeviceOrientationEvent.requestPermission()
+                .then(permissionState => {
+                    if (permissionState === 'granted') {
+                        useGyro = true;
+                        window.addEventListener('deviceorientation', handleOrientation, true);
+                        onScreenButtons.style.display = 'none';
+                        launch();
+                    } else {
+                        alert("Tilt access denied. Using button controls.");
+                        useGyro = false;
+                        launch();
+                    }
+                }).catch(() => {
+                    // Safe local execution bypass
+                    useGyro = false;
+                    launch();
+                });
+            return;
+        } else {
+            useGyro = true;
+            window.addEventListener('deviceorientation', handleOrientation, true);
+            onScreenButtons.style.display = 'none';
+        }
+    } else {
+        useGyro = false;
+        onScreenButtons.style.display = 'flex';
+    }
+    launch();
+}
+
+// Bind cleanly using standard cross-platform click maps
 document.getElementById('play-buttons-btn').addEventListener('click', () => initGame(false));
 document.getElementById('play-tilt-btn').addEventListener('click', () => initGame(true));
 
-// Bottom Bar Control Handlers
+// Gamepad UI Elements Event Links
 const leftBtn = document.getElementById('leftBtn');
 const rightBtn = document.getElementById('rightBtn');
 const jumpBtn = document.getElementById('jumpBtn');
@@ -245,54 +272,26 @@ const performJump = () => {
         player.vy = player.jumpForce - sprintBonus;
         player.isGrounded = false;
     }
+    if (gameState === 'GAME_OVER') {
+        launch();
+    }
 };
 jumpBtn.addEventListener('mousedown', performJump);
 jumpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); performJump(); });
 
-// Keyboard Fallback Configuration
+// Keyboard Handlers
 window.addEventListener('keydown', e => { 
-    keys[e.code] = true; 
     if(e.code === 'ArrowLeft') moveLeft = true;
     if(e.code === 'ArrowRight') moveRight = true;
     if(e.code === 'Space' || e.code === 'ArrowUp') performJump();
 });
 window.addEventListener('keyup', e => { 
-    keys[e.code] = false; 
     if(e.code === 'ArrowLeft') moveLeft = false;
     if(e.code === 'ArrowRight') moveRight = false;
 });
 
 function handleOrientation(event) {
     if (event.gamma !== null) tiltAngle = event.gamma;
-}
-
-function initGame(gyroRequested) {
-    if (gyroRequested) {
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            DeviceOrientationEvent.requestPermission()
-                .then(permissionState => {
-                    if (permissionState === 'granted') {
-                        useGyro = true;
-                        window.addEventListener('deviceorientation', handleOrientation, true);
-                        onScreenButtons.style.display = 'none'; // Hide buttons for pure tilt mode
-                        launch();
-                    } else {
-                        alert("Tilt access denied. Using button controls.");
-                        useGyro = false;
-                        launch();
-                    }
-                }).catch(() => { launch(); });
-            return;
-        } else {
-            useGyro = true;
-            window.addEventListener('deviceorientation', handleOrientation, true);
-            onScreenButtons.style.display = 'none';
-        }
-    } else {
-        useGyro = false;
-        onScreenButtons.style.display = 'flex';
-    }
-    launch();
 }
 
 function launch() {
@@ -311,6 +310,4 @@ function launch() {
     comboCount = 0;
     particles = [];
 
-    // Generate Starting Map
     platforms = [];
-    platforms.push({ x: 0, y: 470, width: canvas.width, label: 0 }); // Ground
