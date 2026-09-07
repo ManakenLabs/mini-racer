@@ -1,313 +1,862 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Icy Tower HTML5 - Kenny Edition</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            background: #111;
-            color: #fff;
-            font-family: 'Courier New', Courier, monospace;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            overflow: hidden;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-        #game-container {
-            position: relative;
-            width: 100%;
-            max-width: 450px;
-            background: #222;
-            border: 4px solid #444;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-        canvas {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-        .ui-overlay {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            right: 12px;
-            display: flex;
-            justify-content: space-between;
-            pointer-events: none;
-            font-weight: bold;
-            font-size: 16px;
-            text-shadow: 2px 2px 0px #000;
-            z-index: 5;
-        }
-        #combo-container {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60%;
-            background: rgba(0,0,0,0.7);
-            border: 2px solid #ff5500;
-            padding: 5px;
-            border-radius: 5px;
-            display: none;
-            text-align: center;
-            pointer-events: none;
-            z-index: 5;
-        }
-        #combo-bar {
-            height: 8px;
-            background: #ff5500;
-            width: 100%;
-        }
-        #combo-text {
-            font-size: 13px;
-            margin-bottom: 2px;
-            color: #ffaa00;
-            text-shadow: 1px 1px 0 #000;
-        }
-        #menu-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(0,0,0,0.85);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            text-align: center;
-            z-index: 10;
-        }
-        .menu-btn {
-            background: #ff5500;
-            color: white;
-            border: none;
-            padding: 14px 24px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 8px;
-            margin: 10px;
-            box-shadow: 0 4px 0 #992200;
-            width: 85%;
-            max-width: 280px;
-        }
-        .menu-btn:active {
-            transform: translateY(2px);
-            box-shadow: 0 2px 0 #992200;
-        }
-        .controls-bar {
-            width: 100%;
-            max-width: 450px;
-            display: flex;
-            justify-content: space-around;
-            padding: 12px;
-            background: #222;
-            border: 4px solid #444;
-            border-top: none;
-        }
-        .game-btn {
-            background: #ff5500;
-            color: white;
-            border: none;
-            padding: 14px 20px;
-            font-size: 15px;
-            font-weight: bold;
-            border-radius: 6px;
-            cursor: pointer;
-            min-width: 100px;
-            text-align: center;
-            box-shadow: 0 4px 0 #992200;
-        }
-        .game-btn:active {
-            transform: translateY(2px);
-            box-shadow: 0 2px 0 #992200;
-        }
-        .btn-green { background: #00aa66; box-shadow: 0 4px 0 #005522; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Rail Runner — Mine Cart Dash</title>
+<style>
+  :root{
+    --brass:#C99A3B;
+    --brass-dark:#8A6A28;
+    --moss:#8FA31E;
+    --jungle:#2E5339;
+    --cave:#1B1F3B;
+    --lantern:#F2C572;
+    --ink:#12141F;
+    --paper:#F4EFE1;
+    --danger:#D9483A;
+    --safe:#4FAE7E;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
+  html,body{
+    margin:0;padding:0;height:100%;background:#000;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Rounded",system-ui,sans-serif;
+    overscroll-behavior:none;
+  }
+  body{
+    display:flex;align-items:center;justify-content:center;
+    min-height:100vh;
+    touch-action:manipulation;
+  }
+
+  /* ---- desktop "watch" preview chrome — collapses away on a true small watch viewport ---- */
+  .watch-case{
+    position:relative;
+    padding:18px 14px;
+    background:linear-gradient(160deg,#3a3a3f,#0c0c0e 60%,#050506);
+    border-radius:64px;
+    box-shadow:0 0 0 2px #000, 0 25px 60px rgba(0,0,0,.6), inset 0 0 6px rgba(255,255,255,.08);
+  }
+  .crown{
+    position:absolute;right:-9px;top:38%;
+    width:14px;height:46px;border-radius:6px;
+    background:linear-gradient(90deg,#8a8a8f,#d8d8de,#8a8a8f);
+    box-shadow:1px 0 3px rgba(0,0,0,.5);
+  }
+  .side-btn{
+    position:absolute;right:-7px;top:22%;
+    width:8px;height:26px;border-radius:4px;
+    background:linear-gradient(90deg,#7a7a7f,#c8c8ce,#7a7a7f);
+  }
+  @media (max-width:430px){
+    .watch-case{padding:0;border-radius:0;box-shadow:none;background:none;}
+    .crown,.side-btn{display:none;}
+  }
+
+  .screen{
+    position:relative;
+    width:368px;height:448px;
+    max-width:96vw;max-height:88vh;
+    aspect-ratio:368/448;
+    border-radius:46px;
+    overflow:hidden;
+    background:#0d1320;
+    box-shadow:inset 0 0 0 3px rgba(255,255,255,.06);
+  }
+  @media (max-width:430px){
+    .screen{border-radius:0;width:100vw;height:100vh;max-width:100vw;max-height:100vh;}
+  }
+
+  canvas#game{
+    position:absolute;inset:0;width:100%;height:100%;display:block;
+  }
+
+  /* ---- HUD ---- */
+  #hud{
+    position:absolute;top:10px;left:0;right:0;
+    display:flex;justify-content:center;
+    pointer-events:none;
+    z-index:5;
+  }
+  #scorePill{
+    padding:5px 16px;
+    background:rgba(12,14,24,.45);
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.14);
+    border-radius:20px;
+    color:var(--paper);
+    font-weight:700;
+    font-size:17px;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:.3px;
+    text-shadow:0 1px 2px rgba(0,0,0,.5);
+  }
+  #bestTag{
+    font-size:10px;font-weight:600;color:var(--lantern);
+    margin-left:8px;opacity:.9;
+  }
+
+  /* ---- Jump button — corner, translucent, never covers the play field ---- */
+  #jumpBtn{
+    position:absolute;
+    right:12px;bottom:12px;
+    width:58px;height:58px;
+    border-radius:50%;
+    border:1px solid rgba(255,255,255,.22);
+    background:radial-gradient(circle at 32% 28%, rgba(255,255,255,.35), rgba(201,154,59,.28) 55%, rgba(20,16,8,.32));
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+    display:flex;align-items:center;justify-content:center;
+    z-index:6;
+    transition:transform .08s ease-out, background .08s ease-out;
+    box-shadow:0 2px 10px rgba(0,0,0,.35);
+  }
+  #jumpBtn:active,#jumpBtn.pressed{
+    transform:scale(.88);
+    background:radial-gradient(circle at 32% 28%, rgba(255,255,255,.5), rgba(201,154,59,.45) 55%, rgba(20,16,8,.4));
+  }
+  #jumpBtn svg{width:22px;height:22px;pointer-events:none;}
+
+  /* ---- Overlays ---- */
+  .overlay{
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:0 28px;
+    background:radial-gradient(120% 90% at 50% 20%, rgba(27,31,59,.55), rgba(5,6,12,.86));
+    color:var(--paper);
+    z-index:10;
+    opacity:0;pointer-events:none;
+    transition:opacity .25s ease;
+  }
+  .overlay.show{opacity:1;pointer-events:auto;}
+  .overlay h1{
+    margin:0 0 4px;font-size:21px;font-weight:800;letter-spacing:.2px;
+    color:var(--lantern);
+  }
+  .overlay p.sub{
+    margin:0 0 16px;font-size:12.5px;line-height:1.5;color:rgba(244,239,225,.8);
+    max-width:230px;
+  }
+  .overlay .stat{
+    font-size:34px;font-weight:800;font-variant-numeric:tabular-nums;
+    color:var(--paper);
+  }
+  .overlay .stat-label{
+    font-size:10.5px;text-transform:none;color:rgba(244,239,225,.65);
+    margin-bottom:14px;
+  }
+  .tap-hint{
+    margin-top:16px;font-size:13px;font-weight:700;color:var(--ink);
+    background:var(--lantern);
+    padding:9px 18px;border-radius:22px;
+    box-shadow:0 4px 14px rgba(0,0,0,.35);
+    animation:pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.05);}}
+
+  .glyph-row{display:flex;gap:10px;margin-bottom:10px;}
+</style>
 </head>
 <body>
 
-<div id="game-container">
-    <canvas id="gameCanvas" width="400" height="500"></canvas>
-    
-    <div class="ui-overlay">
-        <div id="score-display">SCORE: 0</div>
-        <div id="floor-display">FLOOR: 0</div>
+<div class="watch-case">
+  <div class="crown"></div>
+  <div class="side-btn"></div>
+  <div class="screen" id="screen">
+    <canvas id="game"></canvas>
+
+    <div id="hud">
+      <div id="scorePill">0<span id="bestTag"></span></div>
     </div>
 
-    <div id="combo-container">
-        <div id="combo-text">COMBO X2</div>
-        <div id="combo-bar"></div>
+    <button id="jumpBtn" aria-label="Jump">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M12 4L19 13H14V20H10V13H5L12 4Z" fill="#F4EFE1"/>
+      </svg>
+    </button>
+
+    <div id="startOverlay" class="overlay show">
+      <h1>RAIL RUNNER</h1>
+      <p class="sub">Ride the mine cart through the jungle caves. Tap to hop the gaps — two tracks ahead are safe, one is cracked. Choose well.</p>
+      <div class="tap-hint" id="startHint">Tap to Start</div>
     </div>
 
-    <div id="menu-overlay">
-        <h1 style="color: #ff5500; margin-bottom: 5px; text-shadow: 2px 2px 0 #000; font-size: 32px;">ICY TOWER</h1>
-        <p style="margin-bottom: 25px; font-size: 14px; color: #ccc;">Kenny Edition</p>
-        
-        <button id="play-buttons-btn" class="menu-btn">PLAY WITH BUTTONS / KEYS</button>
-        <button id="play-tilt-btn" class="menu-btn" style="background: #00aa66; box-shadow: 0 4px 0 #005522;">PLAY ON IPHONE (TILT)</button>
-        
-        <p style="font-size: 11px; margin-top: 20px; color: #aaa; line-height: 1.4; max-width: 85%;">
-            Click a button to start climbing!
-        </p>
+    <div id="overOverlay" class="overlay">
+      <div class="stat-label">TRACK LOST</div>
+      <div class="stat" id="finalScore">0</div>
+      <div class="stat-label" id="bestLine" style="margin-top:2px;">Best 0</div>
+      <div class="tap-hint" id="retryHint">Tap to Retry</div>
     </div>
-</div>
-
-<div class="controls-bar" id="onScreenButtons">
-    <button id="leftBtn" class="game-btn">← LEFT</button>
-    <button id="jumpBtn" class="game-btn btn-green">JUMP</button>
-    <button id="rightBtn" class="game-btn">RIGHT →</button>
+  </div>
 </div>
 
 <script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+(function(){
+  "use strict";
 
-// Game Parameters
-let gameState = 'MENU';
-let score = 0;
-let highestFloor = 0;
-let cameraY = 0;
-let baseScrollSpeed = 0.35;
+  // ---------------------------------------------------------------
+  // Setup
+  // ---------------------------------------------------------------
+  const screenEl = document.getElementById('screen');
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const CSS_W = 368, CSS_H = 448;
+  let DPR = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
 
-// Entities
-let player = {
-    x: 180, y: 400,
-    width: 32, height: 40,
-    vx: 0, vy: 0,
-    speed: 0.45, maxVx: 7.5,
-    friction: 0.88, gravity: 0.42,
-    jumpForce: -9.5,
-    isGrounded: false, facing: 1
-};
+  function resize(){
+    const rect = screenEl.getBoundingClientRect();
+    DPR = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
+    canvas.width = Math.round(rect.width * DPR);
+    canvas.height = Math.round(rect.height * DPR);
+    scaleX = canvas.width / CSS_W;
+    scaleY = canvas.height / CSS_H;
+  }
+  let scaleX = 1, scaleY = 1;
+  window.addEventListener('resize', resize);
 
-let platforms = [];
-const PLATFORM_THICKNESS = 32;
+  const jumpBtn = document.getElementById('jumpBtn');
+  const scorePill = document.getElementById('scorePill');
+  const bestTag = document.getElementById('bestTag');
+  const startOverlay = document.getElementById('startOverlay');
+  const overOverlay = document.getElementById('overOverlay');
+  const finalScoreEl = document.getElementById('finalScore');
+  const bestLineEl = document.getElementById('bestLine');
 
-// Combo & Spark Particle System
-let comboActive = false;
-let comboCount = 0;
-let comboClock = 0;
-const MAX_COMBO_CLOCK = 100;
-let lastFloorLanded = 0;
-let particles = [];
+  const BEST_KEY = 'railRunnerBest';
+  let best = parseInt(localStorage.getItem(BEST_KEY) || '0', 10);
+  if (best > 0) bestTag.textContent = '  ·  best ' + best;
 
-// Control states
-let useGyro = false;
-let tiltAngle = 0;
-let moveLeft = false;
-let moveRight = false;
+  // ---------------------------------------------------------------
+  // Game constants
+  // ---------------------------------------------------------------
+  const GROUND_Y = 296;              // baseline track surface (world/screen y)
+  const CART_SCREEN_X = 96;          // fixed screen x of the cart
+  const CART_W = 46, CART_H = 30;
+  const GRAVITY = 0.62;
+  const JUMP_VEL = -10.4;
+  const MAX_FALL = 13;
+  const BASE_SPEED = 3.1;
 
-// UI Handles
-const menuOverlay = document.getElementById('menu-overlay');
-const scoreDisplay = document.getElementById('score-display');
-const floorDisplay = document.getElementById('floor-display');
-const comboContainer = document.getElementById('combo-container');
-const comboBar = document.getElementById('combo-bar');
-const comboText = document.getElementById('combo-text');
-const onScreenButtons = document.getElementById('onScreenButtons');
+  const LANES = [GROUND_Y - 104, GROUND_Y - 52, GROUND_Y]; // top, mid, ground
 
-// Core Launch Hook (Safe from local file permission blockers)
-function initGame(gyroRequested) {
-    if (gyroRequested) {
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            DeviceOrientationEvent.requestPermission()
-                .then(permissionState => {
-                    if (permissionState === 'granted') {
-                        useGyro = true;
-                        window.addEventListener('deviceorientation', handleOrientation, true);
-                        onScreenButtons.style.display = 'none';
-                        launch();
-                    } else {
-                        alert("Tilt access denied. Using button controls.");
-                        useGyro = false;
-                        launch();
-                    }
-                }).catch(() => {
-                    // Safe local execution bypass
-                    useGyro = false;
-                    launch();
-                });
-            return;
-        } else {
-            useGyro = true;
-            window.addEventListener('deviceorientation', handleOrientation, true);
-            onScreenButtons.style.display = 'none';
-        }
-    } else {
-        useGyro = false;
-        onScreenButtons.style.display = 'flex';
-    }
-    launch();
-}
+  // ---------------------------------------------------------------
+  // State
+  // ---------------------------------------------------------------
+  let state = 'intro'; // intro | playing | dead
+  let dist = 0;
+  let speed = BASE_SPEED;
+  let score = 0;
+  let time = 0;
+  let junctionsPassed = 0;
 
-// Bind cleanly using standard cross-platform click maps
-document.getElementById('play-buttons-btn').addEventListener('click', () => initGame(false));
-document.getElementById('play-tilt-btn').addEventListener('click', () => initGame(true));
+  let cart = { x: CART_SCREEN_X, y: GROUND_Y - CART_H, vy: 0, grounded: true, tilt: 0, squash: 0 };
+  let camShake = 0;
 
-// Gamepad UI Elements Event Links
-const leftBtn = document.getElementById('leftBtn');
-const rightBtn = document.getElementById('rightBtn');
-const jumpBtn = document.getElementById('jumpBtn');
+  let features = [];   // {type:'ground'|'obstacle'|'platform', wx1, wx2, y, bad, id}
+  let nextSpawnWX = 0;
+  let particles = [];  // {x,y,vx,vy,life,color,r}
+  let uid = 0;
 
-leftBtn.addEventListener('mousedown', () => moveLeft = true);
-leftBtn.addEventListener('mouseup', () => moveLeft = false);
-leftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); moveLeft = true; });
-leftBtn.addEventListener('touchend', () => moveLeft = false);
+  // intro sequence (rollercoaster drop -> track break -> handoff)
+  let intro = { t: 0, dur: 1.55, broke:false };
 
-rightBtn.addEventListener('mousedown', () => moveRight = true);
-rightBtn.addEventListener('mouseup', () => moveRight = false);
-rightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); moveRight = true; });
-rightBtn.addEventListener('touchend', () => moveRight = false);
-
-const performJump = () => {
-    if (player.isGrounded && !useGyro) {
-        let sprintBonus = Math.abs(player.vx) * 0.45;
-        player.vy = player.jumpForce - sprintBonus;
-        player.isGrounded = false;
-    }
-    if (gameState === 'GAME_OVER') {
-        launch();
-    }
-};
-jumpBtn.addEventListener('mousedown', performJump);
-jumpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); performJump(); });
-
-// Keyboard Handlers
-window.addEventListener('keydown', e => { 
-    if(e.code === 'ArrowLeft') moveLeft = true;
-    if(e.code === 'ArrowRight') moveRight = true;
-    if(e.code === 'Space' || e.code === 'ArrowUp') performJump();
-});
-window.addEventListener('keyup', e => { 
-    if(e.code === 'ArrowLeft') moveLeft = false;
-    if(e.code === 'ArrowRight') moveRight = false;
-});
-
-function handleOrientation(event) {
-    if (event.gamma !== null) tiltAngle = event.gamma;
-}
-
-function launch() {
-    gameState = 'PLAYING';
-    menuOverlay.style.display = 'none';
-    score = 0;
-    highestFloor = 0;
-    cameraY = 0;
-    baseScrollSpeed = 0.35;
-    player.x = 180;
-    player.y = 400;
-    player.vx = 0;
-    player.vy = 0;
-    lastFloorLanded = 0;
-    comboActive = false;
-    comboCount = 0;
+  function resetGame(){
+    dist = 0; speed = BASE_SPEED; score = 0; junctionsPassed = 0;
+    cart = { x: CART_SCREEN_X, y: 40, vy: 0, grounded:false, tilt:-0.5, squash:0 };
+    camShake = 0;
+    features = [];
     particles = [];
+    nextSpawnWX = 0;
+    // seed initial ground under/after the intro drop
+    features.push({type:'ground', wx1:-200, wx2:520, y:GROUND_Y, id:uid++});
+    nextSpawnWX = 520;
+    intro = { t:0, dur:1.55, broke:false };
+    state = 'intro';
+  }
 
-    platforms = [];
+  // ---------------------------------------------------------------
+  // Procedural track generation
+  // ---------------------------------------------------------------
+  function genAhead(){
+    while(nextSpawnWX < dist + CSS_W + 500){
+      const runLen = 190 + Math.random()*140 - Math.min(junctionsPassed*3,90);
+      const runStart = nextSpawnWX;
+      const runEnd = runStart + Math.max(120, runLen);
+      features.push({type:'ground', wx1:runStart, wx2:runEnd, y:GROUND_Y, id:uid++});
+
+      // maybe an obstacle mid-run (not too early in the game)
+      if (junctionsPassed > 0 && Math.random() < 0.55 && (runEnd-runStart) > 160){
+        const ox = runStart + (runEnd-runStart)*(0.4+Math.random()*0.3);
+        features.push({type:'obstacle', wx1:ox, wx2:ox+22, y:GROUND_Y-30, id:uid++});
+      }
+
+      // junction: 3 platforms across a gap, 2 safe + 1 cracked
+      const gapStart = runEnd;
+      const slotW = 46, slotGap = 20;
+      const lanesShuffled = LANES.slice().sort(()=>Math.random()-0.5);
+      const badIdx = Math.floor(Math.random()*3);
+      for(let i=0;i<3;i++){
+        const sx = gapStart + 14 + i*(slotW+slotGap);
+        features.push({
+          type:'platform',
+          wx1:sx, wx2:sx+slotW,
+          y: lanesShuffled[i],
+          bad: i===badIdx,
+          settled: false,
+          id: uid++
+        });
+      }
+      const gapEnd = gapStart + 14 + 3*(slotW+slotGap) + 30;
+      nextSpawnWX = gapEnd;
+      junctionsPassed++;
+    }
+    // cull off-screen-left features
+    features = features.filter(f => (f.wx2 - dist) > -80);
+  }
+
+  // ---------------------------------------------------------------
+  // Input
+  // ---------------------------------------------------------------
+  function doJump(){
+    if (state === 'intro') return;
+    if (state === 'dead'){ startGame(); return; }
+    if (state === 'start'){ return; }
+    cart.vy = Math.max(JUMP_VEL, cart.vy - 3); // slight boost feel, clamp not to over-stack
+    cart.vy = JUMP_VEL;
+    cart.grounded = false;
+    spawnPuff(cart.x+CART_W*0.3, cart.y+CART_H, 5, '#F4EFE1');
+  }
+
+  function pressVisual(){
+    jumpBtn.classList.add('pressed');
+    setTimeout(()=>jumpBtn.classList.remove('pressed'), 110);
+  }
+
+  function handleTap(e){
+    if (e) e.preventDefault();
+    pressVisual();
+    if (state === 'menu'){ startGame(); return; }
+    if (state === 'dead'){ startGame(); return; }
+    doJump();
+  }
+
+  jumpBtn.addEventListener('touchstart', handleTap, {passive:false});
+  jumpBtn.addEventListener('mousedown', handleTap);
+  screenEl.addEventListener('touchstart', function(e){
+    if (e.target === jumpBtn || jumpBtn.contains(e.target)) return;
+    handleTap(e);
+  }, {passive:false});
+  screenEl.addEventListener('mousedown', function(e){
+    if (e.target === jumpBtn || jumpBtn.contains(e.target)) return;
+    handleTap(e);
+  });
+  window.addEventListener('keydown', function(e){
+    if (e.code === 'Space' || e.code === 'ArrowUp'){ handleTap(e); }
+  });
+
+  function startGame(){
+    resetGame();
+    startOverlay.classList.remove('show');
+    overOverlay.classList.remove('show');
+  }
+
+  // first tap on the very first screen begins the intro
+  let hasStarted = false;
+  startOverlay.addEventListener('touchstart', beginFirst, {passive:false});
+  startOverlay.addEventListener('mousedown', beginFirst);
+  function beginFirst(e){
+    if (e) e.preventDefault();
+    if (hasStarted) return;
+    hasStarted = true;
+    startOverlay.classList.remove('show');
+    resetGame();
+  }
+
+  overOverlay.addEventListener('touchstart', function(e){e.preventDefault();startGame();}, {passive:false});
+  overOverlay.addEventListener('mousedown', function(){startGame();});
+
+  // ---------------------------------------------------------------
+  // Particles
+  // ---------------------------------------------------------------
+  function spawnPuff(x,y,n,color){
+    for(let i=0;i<n;i++){
+      particles.push({
+        x, y,
+        vx:(Math.random()-0.5)*2.4,
+        vy:-Math.random()*2-0.4,
+        life:1, r:2+Math.random()*2, color
+      });
+    }
+  }
+  function spawnCrash(x,y){
+    for(let i=0;i<18;i++){
+      particles.push({
+        x,y,
+        vx:(Math.random()-0.5)*6,
+        vy:-Math.random()*5-1,
+        life:1, r:2+Math.random()*3,
+        color: Math.random()<0.5 ? '#D9483A' : '#C99A3B'
+      });
+    }
+  }
+
+  function updateParticles(dt){
+    for(let i=particles.length-1;i>=0;i--){
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy; p.vy += 0.25;
+      p.life -= dt*1.6;
+      if (p.life <= 0) particles.splice(i,1);
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // Death
+  // ---------------------------------------------------------------
+  function die(){
+    if (state === 'dead') return;
+    state = 'dead';
+    camShake = 10;
+    spawnCrash(cart.x+CART_W/2, cart.y+CART_H/2);
+    score = Math.floor(dist/10) + junctionsPassed*5;
+    if (score > best){ best = score; localStorage.setItem(BEST_KEY, String(best)); }
+    finalScoreEl.textContent = score;
+    bestLineEl.textContent = 'Best ' + best;
+    setTimeout(()=>{ overOverlay.classList.add('show'); }, 420);
+  }
+
+  // ---------------------------------------------------------------
+  // Update loop
+  // ---------------------------------------------------------------
+  function update(dt){
+    time += dt;
+    updateParticles(dt);
+
+    if (state === 'intro'){
+      intro.t += dt;
+      const p = Math.min(1, intro.t / intro.dur);
+      // ease-in drop from top-left down to the ground track
+      const ease = p<1 ? (1-Math.pow(1-p,3)) : 1;
+      cart.x = 34 + (CART_SCREEN_X-34)*ease;
+      cart.y = 40 + (GROUND_Y-CART_H-40)*ease;
+      cart.tilt = -0.55*(1-ease);
+      dist = 0;
+      if (p >= 1 && !intro.broke){
+        intro.broke = true;
+        spawnPuff(cart.x+CART_W*0.5, cart.y+CART_H, 10, '#C99A3B');
+        camShake = 5;
+        state = 'playing';
+        cart.grounded = true; cart.vy = 0;
+      }
+      return;
+    }
+
+    if (state !== 'playing') return;
+
+    genAhead();
+
+    speed = BASE_SPEED + Math.min(2.6, dist*0.00035);
+    dist += speed;
+    score = Math.floor(dist/10) + junctionsPassed*5;
+    scorePill.firstChild.nodeValue = score;
+
+    // physics
+    cart.vy = Math.min(MAX_FALL, cart.vy + GRAVITY);
+    const prevBottom = cart.y + CART_H;
+    cart.y += cart.vy;
+    const newBottom = cart.y + CART_H;
+
+    // tilt follows vertical velocity
+    const targetTilt = Math.max(-0.4, Math.min(0.5, cart.vy*0.045));
+    cart.tilt += (targetTilt - cart.tilt) * 0.2;
+
+    let landedOn = null;
+    let wasGrounded = cart.grounded;
+    cart.grounded = false;
+
+    for (const f of features){
+      if (f.type !== 'ground' && f.type !== 'platform') continue;
+      const sx1 = f.wx1 - dist, sx2 = f.wx2 - dist;
+      if (sx2 < cart.x + 4 || sx1 > cart.x + CART_W - 4) continue;
+      if (cart.vy >= 0 && prevBottom <= f.y + 1 && newBottom >= f.y){
+        cart.y = f.y - CART_H;
+        cart.vy = 0;
+        cart.grounded = true;
+        landedOn = f;
+        break;
+      }
+    }
+
+    if (landedOn && !wasGrounded){
+      spawnPuff(cart.x+8, cart.y+CART_H, 4, 'rgba(230,220,200,0.9)');
+      cart.squash = 1;
+    }
+    cart.squash *= 0.85;
+
+    if (landedOn && landedOn.type === 'platform' && landedOn.bad){
+      spawnCrash(cart.x+CART_W/2, cart.y+CART_H/2);
+      die();
+      return;
+    }
+
+    // obstacle collision (must be airborne above it to pass)
+    for (const f of features){
+      if (f.type !== 'obstacle') continue;
+      const sx1 = f.wx1 - dist, sx2 = f.wx2 - dist;
+      const overlapX = sx2 > cart.x+3 && sx1 < cart.x+CART_W-3;
+      if (!overlapX) continue;
+      const overlapY = (cart.y + CART_H) > f.y;
+      if (overlapX && overlapY){
+        die();
+        return;
+      }
+    }
+
+    // fell off the world
+    if (cart.y > CSS_H + 20){
+      die();
+      return;
+    }
+
+    if (camShake > 0) camShake *= 0.85;
+  }
+
+  // ---------------------------------------------------------------
+  // Rendering
+  // ---------------------------------------------------------------
+  function lerpColor(a,b,t){
+    const ah=parseInt(a.slice(1),16), bh=parseInt(b.slice(1),16);
+    const ar=(ah>>16)&255, ag=(ah>>8)&255, ab=ah&255;
+    const br=(bh>>16)&255, bg=(bh>>8)&255, bb=bh&255;
+    const r=Math.round(ar+(br-ar)*t), g=Math.round(ag+(bg-ag)*t), b2=Math.round(ab+(bb-ab)*t);
+    return 'rgb('+r+','+g+','+b2+')';
+  }
+
+  function drawBackground(){
+    const p = Math.max(0, Math.min(1, dist/9000)); // jungle -> cave progress
+    const skyTop = lerpColor('#7FBE5C','#211A3D', p);
+    const skyBot = lerpColor('#CFE8A6','#2C2450', p);
+
+    const g = ctx.createLinearGradient(0,0,0,CSS_H);
+    g.addColorStop(0, skyTop);
+    g.addColorStop(1, skyBot);
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,CSS_W,CSS_H);
+
+    // distant range (parallax 0.15)
+    drawRepeatingRidge(0.15, 260, 46, lerpColor('#3E6B44','#241A3C', p), 0.9);
+    // mid range (parallax 0.35) - trees fading to stalactites
+    drawRepeatingRidge(0.35, 300, 70, lerpColor('#2E5339','#171233', p), 1);
+    // canopy / crystal glints (parallax 0.6)
+    drawDecor(0.6, p);
+
+    // lantern glow specks increase with depth
+    if (p > 0.25){
+      for(let i=0;i<6;i++){
+        const wx = Math.floor((dist*0.5 + i*260) / 260) * 260 + (i*97 % 260);
+        const sx = wx - dist*0.5 % 260 - (i*13);
+        const sxWrapped = ((wx - dist*0.5) % (CSS_W+260) + (CSS_W+260)) % (CSS_W+260) - 130;
+        const gy = 60 + (i*53)%180;
+        const flick = 0.5 + 0.5*Math.sin(time*3 + i*10);
+        ctx.beginPath();
+        ctx.arc(sxWrapped, gy, 2.4, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(242,197,114,${(0.15+0.35*flick)*p})`;
+        ctx.fill();
+      }
+    }
+  }
+
+  function drawRepeatingRidge(parallax, baseY, amp, color, alpha){
+    const off = (dist*parallax) % 92;
+    ctx.fillStyle = color;
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.moveTo(-92, CSS_H);
+    for (let x=-92; x<CSS_W+92; x+=46){
+      const xx = x - off;
+      const seed = Math.floor((x+off*0)/46);
+      const h = baseY - (Math.sin((x)*0.05)*amp*0.5 + amp*0.5) + (((seed*97)%40)-20)*0.3;
+      ctx.lineTo(xx, h);
+    }
+    ctx.lineTo(CSS_W+92, CSS_H);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  function drawDecor(parallax, p){
+    const spacing = 130;
+    const off = (dist*parallax) % spacing;
+    for (let x=-spacing; x<CSS_W+spacing; x+=spacing){
+      const sx = x - off;
+      const seed = Math.round((x+off*0)/spacing);
+      const jitter = ((seed*53)%40)-20;
+      const topY = 40 + ((seed*29)%30);
+      if (p < 0.7){
+        // jungle vine / leaf cluster
+        ctx.strokeStyle = 'rgba(60,90,50,'+(0.5)+')';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(sx+jitter, 0);
+        ctx.quadraticCurveTo(sx+jitter+14, topY*0.6, sx+jitter, topY);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(90,140,70,0.55)';
+        ctx.beginPath();
+        ctx.ellipse(sx+jitter, topY, 9, 6, 0.4, 0, Math.PI*2);
+        ctx.fill();
+      }
+      if (p > 0.35){
+        // cave stalactite, fades in
+        ctx.globalAlpha = Math.min(1,(p-0.35)/0.4);
+        ctx.fillStyle = '#151030';
+        ctx.beginPath();
+        ctx.moveTo(sx-10+jitter*0.4, 0);
+        ctx.lineTo(sx+10+jitter*0.4, 0);
+        ctx.lineTo(sx+jitter*0.4, 34+((seed*17)%22));
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  function drawTrack(){
+    ctx.save();
+    for (const f of features){
+      const sx1 = f.wx1 - dist, sx2 = f.wx2 - dist;
+      if (sx2 < -20 || sx1 > CSS_W+20) continue;
+
+      if (f.type === 'ground'){
+        drawRail(sx1, sx2, f.y, false, false);
+      } else if (f.type === 'platform'){
+        drawRail(sx1, sx2, f.y, f.bad, true);
+      } else if (f.type === 'obstacle'){
+        drawRock(sx1, f.y);
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawRail(x1, x2, y, bad, floating){
+    const w = x2-x1;
+    // shadow into the abyss for floating platforms
+    if (floating){
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(x1+3, y+6, w-6, 4);
+    }
+    // ties
+    ctx.fillStyle = bad ? '#5b332c' : '#5a4327';
+    for (let x=x1; x<x2; x+=14){
+      ctx.fillRect(x, y+2, 8, 8);
+    }
+    // rails
+    ctx.strokeStyle = bad ? '#B94A3C' : '#D8B36A';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x1, y);
+    ctx.lineTo(x2, y);
+    ctx.stroke();
+
+    if (bad){
+      // cracks / spikes to signal danger
+      ctx.strokeStyle = '#7A241C';
+      ctx.lineWidth = 1.4;
+      for (let x=x1+6; x<x2-4; x+=10){
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x+4, y-6);
+        ctx.stroke();
+      }
+    } else if (floating){
+      ctx.fillStyle = 'rgba(79,174,126,0.35)';
+      ctx.fillRect(x1, y-2, w, 2);
+    }
+  }
+
+  function drawRock(x, topY){
+    ctx.fillStyle = '#3B3540';
+    ctx.beginPath();
+    ctx.moveTo(x, GROUND_Y);
+    ctx.lineTo(x+4, topY);
+    ctx.lineTo(x+11, topY-6);
+    ctx.lineTo(x+18, topY);
+    ctx.lineTo(x+22, GROUND_Y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  function drawCart(){
+    const cx = cart.x, cy = cart.y;
+    ctx.save();
+    ctx.translate(cx+CART_W/2, cy+CART_H/2);
+    ctx.rotate(cart.tilt);
+    const squash = 1 - cart.squash*0.16;
+    ctx.scale(1+cart.squash*0.10, squash);
+    ctx.translate(-(CART_W/2), -(CART_H/2));
+
+    // wheels
+    const wheelR = 7;
+    const spin = (dist*0.12) % (Math.PI*2);
+    drawWheel(9, CART_H-2, wheelR, spin);
+    drawWheel(CART_W-9, CART_H-2, wheelR, spin);
+
+    // cart body
+    const bodyGrad = ctx.createLinearGradient(0,0,0,CART_H);
+    bodyGrad.addColorStop(0,'#C99A3B');
+    bodyGrad.addColorStop(1,'#8A6A28');
+    roundRect(4, 4, CART_W-8, CART_H-10, 6);
+    ctx.fillStyle = bodyGrad;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // rivets
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    for (let i=0;i<3;i++){
+      ctx.beginPath();
+      ctx.arc(10+i*12, CART_H-10, 1.2, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // dog, half poking out the front-top of the cart
+    drawDog();
+
+    ctx.restore();
+  }
+
+  function drawWheel(x,y,r,spin){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(spin);
+    ctx.beginPath();
+    ctx.arc(0,0,r,0,Math.PI*2);
+    ctx.fillStyle = '#2B2620';
+    ctx.fill();
+    ctx.strokeStyle = '#C99A3B';
+    ctx.lineWidth = 1.4;
+    for(let i=0;i<4;i++){
+      ctx.beginPath();
+      ctx.moveTo(0,0);
+      ctx.lineTo(Math.cos(i*Math.PI/2)*r*0.8, Math.sin(i*Math.PI/2)*r*0.8);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawDog(){
+    const bob = Math.sin(time*4.2)*1.6;
+    const earFlap = Math.sin(time*8) * 0.35;
+    const hx = CART_W*0.32, hy = -3 + bob;
+
+    ctx.save();
+    ctx.translate(hx, hy);
+
+    // ears
+    ctx.fillStyle = '#7A4A2B';
+    ctx.save(); ctx.rotate(-0.5+earFlap); ctx.beginPath(); ctx.ellipse(-6,-2,4,7,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.rotate(0.5-earFlap); ctx.beginPath(); ctx.ellipse(6,-2,4,7,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+
+    // head
+    ctx.fillStyle = '#C08A52';
+    ctx.beginPath();
+    ctx.arc(0,-4,8,0,Math.PI*2);
+    ctx.fill();
+
+    // snout
+    ctx.fillStyle = '#E7C9A3';
+    ctx.beginPath();
+    ctx.ellipse(4,-1,3.6,2.6,0,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#2B2620';
+    ctx.beginPath();
+    ctx.arc(6.5,-1.4,1,0,Math.PI*2);
+    ctx.fill();
+
+    // eye
+    ctx.fillStyle = '#20160f';
+    ctx.beginPath();
+    ctx.arc(1.5,-6,1.1,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function roundRect(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  function drawParticles(){
+    for (const p of particles){
+      ctx.globalAlpha = Math.max(0,p.life);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawAbyssFade(){
+    if (state !== 'dead') return;
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(0,0,CSS_W,CSS_H);
+  }
+
+  function render(){
+    ctx.save();
+    ctx.setTransform(scaleX,0,0,scaleY,0,0);
+    ctx.clearRect(0,0,CSS_W,CSS_H);
+
+    let sx=0, sy=0;
+    if (camShake > 0.2){
+      sx = (Math.random()-0.5)*camShake;
+      sy = (Math.random()-0.5)*camShake;
+    }
+    ctx.translate(sx,sy);
+
+    drawBackground();
+    drawTrack();
+    drawParticles();
+    drawCart();
+    drawAbyssFade();
+
+    ctx.restore();
+  }
+
+  // ---------------------------------------------------------------
+  // Loop
+  // ---------------------------------------------------------------
+  let lastT = performance.now();
+  function frame(t){
+    let dt = (t - lastT) / 1000;
+    if (dt > 0.05) dt = 0.05;
+    lastT = t;
+    update(dt);
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  // ---------------------------------------------------------------
+  // Boot — sit on a pre-intro pose until the player taps "Start"
+  // ---------------------------------------------------------------
+  cart.x = 34; cart.y = 40; cart.tilt = -0.5;
+  state = 'menu';
+  resize();
+  requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>
