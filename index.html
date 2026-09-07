@@ -1,698 +1,332 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="theme-color" content="#0b0d10" />
-<title>Wind &amp; Drift</title>
-<style>
-  :root{
-    --bg:#0b0d10;
-    --panel:#12161b;
-    --panel-edge:#232a32;
-    --brass:#c9a24b;
-    --brass-dim:#7a6533;
-    --copper:#b5622f;
-    --parchment:#e8e2d3;
-    --parchment-dim:#8b8676;
-    --danger:#ff5a36;
-    --ok:#7fae6f;
-  }
-  *{box-sizing:border-box; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
-  html,body{
-    margin:0; padding:0; width:100%; height:100%; overflow:hidden;
-    background:var(--bg); color:var(--parchment);
-    font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", Helvetica, sans-serif;
-    touch-action:none;
-  }
-  #app{position:fixed; inset:0;}
-
-  /* ---------- WIND SCREEN ---------- */
-  #windScreen{
-    position:absolute; inset:0;
-    display:flex; flex-direction:column; align-items:center; justify-content:space-between;
-    padding:6% 4% 5%;
-    background:
-      radial-gradient(120% 90% at 50% -10%, #1a2028 0%, var(--bg) 60%);
-  }
-  #windTitle{
-    font-family: Georgia, "Iowan Old Style", serif;
-    letter-spacing:0.02em;
-    font-size:clamp(13px,5.2vw,17px);
-    color:var(--brass);
-    text-align:center;
-    line-height:1.15;
-    text-shadow:0 0 12px rgba(201,162,75,0.25);
-  }
-  #windSub{
-    font-size:clamp(9px,3.1vw,11px);
-    color:var(--parchment-dim);
-    margin-top:4px;
-    text-align:center;
-  }
-  #mechWrap{
-    position:relative;
-    width:min(78vw,240px);
-    aspect-ratio: 1.5 / 1;
-    display:flex; align-items:center; justify-content:center;
-  }
-  #mechSvg{ width:100%; height:100%; overflow:visible; }
-  .coil{ fill:none; stroke:var(--copper); stroke-width:5; stroke-linecap:round; }
-  .pinRod{ fill:var(--brass); }
-  .pinHead{ fill:var(--brass); stroke:#3a2f14; stroke-width:1; }
-  .ballDot{ fill:var(--parchment); }
-  #crownKnob{
-    position:absolute; right:-6%; top:50%; transform:translateY(-50%);
-    width:15%; aspect-ratio:1/2.2;
-    background:linear-gradient(90deg,#5c4a20,#c9a24b 35%,#8a6f2f 60%,#3a2f14);
-    border-radius:6px;
-    box-shadow:0 0 0 1px #000, inset 0 0 4px rgba(0,0,0,0.6);
-  }
-  #crownKnob::before,#crownKnob::after,#crownKnob .ridge{
-    content:"";
-  }
-  #ringWrap{
-    position:relative; width:min(56vw,150px); aspect-ratio:1/1; margin-top:4%;
-  }
-  #ringWrap svg{ width:100%; height:100%; transform:rotate(-90deg); }
-  #ringBg{ fill:none; stroke:var(--panel-edge); stroke-width:8; }
-  #ringFg{ fill:none; stroke:var(--brass); stroke-width:8; stroke-linecap:round;
-    transition: stroke-dashoffset 0.05s linear; }
-  #degLabel{
-    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  }
-  #degNum{
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
-    font-size:clamp(20px,7.2vw,28px);
-    color:var(--parchment);
-    font-weight:600;
-  }
-  #degUnit{ font-size:clamp(8px,2.6vw,10px); color:var(--parchment-dim); margin-top:-2px; letter-spacing:0.08em;}
-  #windHint{
-    font-size:clamp(8px,2.6vw,10px);
-    color:var(--parchment-dim);
-    text-align:center;
-    max-width:80%;
-    line-height:1.4;
-  }
-  #flash{
-    position:absolute; inset:0; background:var(--parchment); opacity:0; pointer-events:none;
-  }
-
-  /* ---------- WORLD SCREEN ---------- */
-  #worldScreen{ position:absolute; inset:0; display:none; }
-  #c{ position:absolute; inset:0; width:100%; height:100%; display:block; }
-  #hud{
-    position:absolute; top:0; left:0; right:0;
-    display:flex; justify-content:space-between; align-items:flex-start;
-    padding:4% 5% 0;
-    pointer-events:none;
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  }
-  .hudChip{
-    background:rgba(11,13,16,0.55);
-    border:1px solid var(--panel-edge);
-    border-radius:8px;
-    padding:3px 7px;
-    font-size:clamp(9px,2.8vw,11px);
-    color:var(--brass);
-    backdrop-filter: blur(2px);
-  }
-  #motionBtn{
-    position:absolute; left:50%; bottom:6%; transform:translateX(-50%);
-    background:var(--brass); color:#211a08; border:none; border-radius:20px;
-    padding:9px 18px; font-size:clamp(10px,3vw,12px); font-weight:600;
-    box-shadow:0 2px 10px rgba(0,0,0,0.5);
-  }
-  #tiltPad{
-    position:absolute; inset:0; display:none;
-  }
-  #toast{
-    position:absolute; left:50%; bottom:9%; transform:translateX(-50%);
-    background:rgba(11,13,16,0.75); border:1px solid var(--panel-edge);
-    color:var(--parchment); border-radius:10px; padding:5px 10px;
-    font-size:clamp(9px,2.8vw,11px); max-width:78%; text-align:center;
-    opacity:0; transition:opacity 0.25s ease;
-    pointer-events:none;
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Icy Tower HTML5 - Kenny Edition</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: #111;
+            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            aspect-ratio: 5 / 6;
+            background: #222;
+            border: 4px solid #444;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .ui-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            font-weight: bold;
+            font-size: 18px;
+            text-shadow: 2px 2px 0px #000;
+        }
+        #combo-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            background: rgba(0,0,0,0.6);
+            border: 2px solid #ff5500;
+            padding: 5px;
+            border-radius: 5px;
+            display: none;
+            text-align: center;
+            pointer-events: none;
+        }
+        #combo-bar {
+            height: 10px;
+            background: #ff5500;
+            width: 100%;
+            transition: width 0.1s linear;
+        }
+        #combo-text {
+            font-size: 14px;
+            margin-bottom: 2px;
+            color: #ffaa00;
+            text-shadow: 1px 1px 0 #000;
+        }
+        #menu-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+        }
+        button {
+            background: #ff5500;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 10px;
+            box-shadow: 0 4px 0 #992200;
+        }
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #992200;
+        }
+        #hurry-text {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            color: #ff3300;
+            font-weight: bold;
+            text-shadow: 3px 3px 0 #000;
+            display: none;
+            pointer-events: none;
+            animation: blink 0.3s infinite alternate;
+        }
+        @keyframes blink { from { opacity: 1; } to { opacity: 0; } }
+    </style>
 </head>
 <body>
-<div id="app">
 
-  <!-- ===================== WIND-UP SCREEN ===================== -->
-  <div id="windScreen">
-    <div>
-      <div id="windTitle">WIND &amp; DRIFT</div>
-      <div id="windSub">Turn the Digital Crown to load the spring</div>
+<div id="game-container">
+    <canvas id="gameCanvas" width="500" height="600"></canvas>
+    
+    <div class="ui-overlay">
+        <div id="score-display">SCORE: 0</div>
+        <div id="floor-display">FLOOR: 0</div>
     </div>
 
-    <div id="mechWrap">
-      <svg id="mechSvg" viewBox="0 0 200 130">
-        <!-- fixed post -->
-        <rect x="8" y="50" width="8" height="30" fill="#3a4a5a"/>
-        <!-- coil spring, path regenerated by JS via stroke-dasharray trick: we draw a zigzag polyline -->
-        <polyline id="coilLine" class="coil" points=""/>
-        <!-- pin (rod + head) -->
-        <g id="pinGroup">
-          <rect id="pinRod" class="pinRod" x="60" y="60" width="26" height="10" rx="2"/>
-          <circle id="pinHead" class="pinHead" cx="60" cy="65" r="9"/>
-        </g>
-        <!-- pinball waiting to be struck -->
-        <circle id="ballDot" class="ballDot" cx="150" cy="65" r="7"/>
-      </svg>
-      <div id="crownKnob"></div>
+    <div id="hurry-text">HURRY UP!</div>
+
+    <div id="combo-container">
+        <div id="combo-text">COMBO X2</div>
+        <div id="combo-bar"></div>
     </div>
 
-    <div id="ringWrap">
-      <svg viewBox="0 0 120 120">
-        <circle id="ringBg" cx="60" cy="60" r="52"/>
-        <circle id="ringFg" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
-      </svg>
-      <div id="degLabel">
-        <div id="degNum">0°</div>
-        <div id="degUnit">OF 50</div>
-      </div>
+    <div id="menu-overlay">
+        <h1 style="color: #ff5500; margin-bottom: 10px; text-shadow: 2px 2px 0 #000;">ICY TOWER</h1>
+        <p style="margin-bottom: 20px; font-size: 14px; color: #ccc;">Kenny Edition</p>
+        <button id="start-btn">PLAY WITH KEYS</button>
+        <button id="gyro-btn" style="background: #00aa66; box-shadow: 0 4px 0 #005522;">PLAY ON IPHONE (TILT)</button>
+        <p style="font-size: 11px; margin-top: 15px; color: #888; max-width: 80%;">Keys: Left/Right to run. Space/Up to jump.<br>Mobile: Tilt phone to run. Auto-jumps automatically!</p>
     </div>
-
-    <div id="windHint">Rotate the crown, or drag it / scroll if testing off-watch</div>
-    <div id="flash"></div>
-  </div>
-
-  <!-- ===================== 3D WORLD SCREEN ===================== -->
-  <div id="worldScreen">
-    <canvas id="c"></canvas>
-    <div id="hud">
-      <div class="hudChip" id="scoreChip">RINGS 0/6</div>
-      <div class="hudChip" id="tiltChip">TILT --</div>
-    </div>
-    <button id="motionBtn">ENABLE TILT CONTROL</button>
-    <div id="tiltPad"></div>
-    <div id="toast"></div>
-  </div>
-
 </div>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
-  }
-}
-</script>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
-<script type="module">
-import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
+// Game States
+let gameState = 'MENU';
+let score = 0;
+let highestFloor = 0;
+let cameraY = 0;
+let scrollSpeed = 0;
+let baseScrollSpeed = 0.3;
+let hurryTimer = 0;
 
-/* =========================================================================
-   PART 1 — CROWN WIND-UP MECHANISM (front POV)
-   Real Apple Watch web content cannot read the Digital Crown through a
-   dedicated API, but rotating the crown on-device dispatches wheel/scroll
-   deltaY events to the page — that's what we listen for here. We also
-   support dragging the drawn crown knob (for touch/phone testing) and a
-   mouse-wheel fallback for desktop testing.
-   ========================================================================= */
+// Combo System
+let comboActive = false;
+let comboCount = 0;
+let comboClock = 0;
+const MAX_COMBO_CLOCK = 100;
+let floorsSkippedThisJump = 0;
+let lastFloorLanded = 0;
+let particles = [];
 
-const THRESHOLD_DEG = 50;
-let totalDeg = 0;
-let launched = false;
+// Controls Configuration
+let useGyro = false;
+let tiltAngle = 0;
+let keys = {};
 
-const coilLine   = document.getElementById('coilLine');
-const pinGroup   = document.getElementById('pinGroup');
-const ballDot    = document.getElementById('ballDot');
-const ringFg     = document.getElementById('ringFg');
-const degNum     = document.getElementById('degNum');
-const crownKnob  = document.getElementById('crownKnob');
-const windScreen = document.getElementById('windScreen');
-const worldScreen= document.getElementById('worldScreen');
-const flashEl    = document.getElementById('flash');
+// Entities
+let player = {
+    x: 230,
+    y: 500,
+    width: 32,
+    height: 40,
+    vx: 0,
+    vy: 0,
+    isGrounded: false,
+    facing: 1, // 1 = Right, -1 = Left
+    speed: 0.4,
+    maxVx: 7,
+    friction: 0.88,
+    gravity: 0.4,
+    jumpForce: -9
+};
 
-const RING_CIRC = 2 * Math.PI * 52;
+let platforms = [];
+const PLATFORM_THICKNESS = 32; // Twice as thick as standard 16px layouts
 
-function drawCoil(compression){
-  // compression: 0 (relaxed) -> 1 (fully wound/compressed)
-  const startX = 16, endX = 60 - compression*10;
-  const coils = 6;
-  const w = (endX - startX) / coils;
-  let pts = [];
-  for(let i=0;i<=coils;i++){
-    const x = startX + w*i;
-    const y = 65 + (i%2===0 ? -14 : 14) * (1-compression*0.35);
-    pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
-  }
-  coilLine.setAttribute('points', pts.join(' '));
-}
+// Initialize UI Elements
+const menuOverlay = document.getElementById('menu-overlay');
+const scoreDisplay = document.getElementById('score-display');
+const floorDisplay = document.getElementById('floor-display');
+const comboContainer = document.getElementById('combo-container');
+const comboBar = document.getElementById('combo-bar');
+const comboText = document.getElementById('combo-text');
+const hurryText = document.getElementById('hurry-text');
 
-function updateWindVisual(){
-  const t = Math.min(totalDeg / THRESHOLD_DEG, 1);
-  drawCoil(t);
-  // pin retracts toward the spring as tension builds
-  const pinX = 60 - t*8;
-  pinGroup.setAttribute('transform', `translate(${-t*2},0)`);
-  degNum.textContent = Math.round(Math.min(totalDeg, THRESHOLD_DEG)) + '°';
-  const offset = RING_CIRC * (1 - t);
-  ringFg.style.strokeDashoffset = offset.toFixed(1);
-  ringFg.style.stroke = t >= 1 ? 'var(--danger)' : 'var(--brass)';
-}
-drawCoil(0);
+// Event Listeners
+document.getElementById('start-btn').addEventListener('click', () => startGame(false));
+document.getElementById('gyro-btn').addEventListener('click', () => startGame(true));
 
-function addWind(deg){
-  if(launched) return;
-  totalDeg = Math.max(0, Math.min(totalDeg + Math.abs(deg), THRESHOLD_DEG));
-  updateWindVisual();
-  if(totalDeg >= THRESHOLD_DEG) releaseSpring();
-}
+window.addEventListener('keydown', e => { keys[e.code] = true; });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
 
-// --- crown scroll / wheel (real watch crown dispatches wheel events) ---
-windScreen.addEventListener('wheel', (e)=>{
-  e.preventDefault();
-  addWind(e.deltaY * 0.35);
-}, {passive:false});
-
-// --- draggable crown knob for touch testing ---
-let dragging = false, lastAngle = 0;
-function knobCenter(){
-  const r = crownKnob.getBoundingClientRect();
-  return {x:r.left+r.width/2, y:r.top+r.height/2};
-}
-function angleFromCenter(x,y){
-  const c = knobCenter();
-  return Math.atan2(y-c.y, x-c.x);
-}
-function knobDown(x,y){ dragging = true; lastAngle = angleFromCenter(x,y); }
-function knobMove(x,y){
-  if(!dragging) return;
-  const a = angleFromCenter(x,y);
-  let d = a - lastAngle;
-  while(d > Math.PI) d -= Math.PI*2;
-  while(d < -Math.PI) d += Math.PI*2;
-  lastAngle = a;
-  addWind(Math.abs(d) * (180/Math.PI));
-}
-function knobUp(){ dragging = false; }
-crownKnob.addEventListener('touchstart', e=>{const t=e.touches[0]; knobDown(t.clientX,t.clientY);}, {passive:true});
-crownKnob.addEventListener('touchmove', e=>{const t=e.touches[0]; knobMove(t.clientX,t.clientY);}, {passive:true});
-crownKnob.addEventListener('touchend', knobUp);
-crownKnob.addEventListener('mousedown', e=> knobDown(e.clientX,e.clientY));
-window.addEventListener('mousemove', e=> knobMove(e.clientX,e.clientY));
-window.addEventListener('mouseup', knobUp);
-
-// keyboard fallback (desktop testing): arrow up/down winds
-window.addEventListener('keydown', e=>{
-  if(e.key==='ArrowUp' || e.key==='ArrowDown') addWind(4);
-});
-
-function releaseSpring(){
-  launched = true;
-  // snap animation: pin flies forward and strikes the ball
-  pinGroup.style.transition = 'transform 0.12s cubic-bezier(.2,.9,.3,1)';
-  pinGroup.setAttribute('transform', 'translate(70,0)');
-  ballDot.style.transition = 'transform 0.25s cubic-bezier(.3,.6,.4,1)';
-  setTimeout(()=>{
-    ballDot.style.transform = 'translateX(60px) scale(0.6)';
-  }, 90);
-  setTimeout(()=>{
-    flashEl.style.transition = 'opacity 0.18s ease';
-    flashEl.style.opacity = '1';
-  }, 260);
-  setTimeout(()=>{
-    windScreen.style.display = 'none';
-    worldScreen.style.display = 'block';
-    initWorld();
-  }, 420);
-  setTimeout(()=>{ flashEl.style.opacity = '0'; }, 520);
-}
-
-/* =========================================================================
-   PART 2 — 3D OPEN WORLD (three.js + cannon-es), gyroscope-controlled
-   ========================================================================= */
-
-let scene, camera, renderer, world;
-let ballMesh, ballBody;
-let npcs = [];
-let rings = [];
-let ringsCollected = 0;
-let clock;
-let worldReady = false;
-
-const G = 9.82; // real Earth gravity, m/s^2
-let tiltGamma = 0, tiltBeta = 0; // device-relative tilt, radians
-let baseGamma = null, baseBeta = null; // calibration reference
-let manualTilt = {x:0,y:0}; // fallback drag control
-
-const toastEl = document.getElementById('toast');
-let toastTimer = null;
-function showToast(msg){
-  toastEl.textContent = msg;
-  toastEl.style.opacity = '1';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=>{ toastEl.style.opacity='0'; }, 2200);
-}
-
-function initWorld(){
-  if(worldReady) return;
-  worldReady = true;
-
-  const canvas = document.getElementById('c');
-  renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:false});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true;
-
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0b0d10);
-  scene.fog = new THREE.Fog(0x0b0d10, 25, 90);
-
-  camera = new THREE.PerspectiveCamera(62, window.innerWidth/window.innerHeight, 0.1, 300);
-
-  // lighting
-  const hemi = new THREE.HemisphereLight(0x8899aa, 0x201812, 0.9);
-  scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffe6c0, 1.1);
-  sun.position.set(20,30,10);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(1024,1024);
-  sun.shadow.camera.left = -40; sun.shadow.camera.right = 40;
-  sun.shadow.camera.top = 40; sun.shadow.camera.bottom = -40;
-  scene.add(sun);
-
-  // physics world with REAL gravity
-  world = new CANNON.World({ gravity: new CANNON.Vec3(0, -G, 0) });
-  world.broadphase = new CANNON.SAPBroadphase(world);
-  world.allowSleep = false;
-
-  const groundMat = new CANNON.Material('ground');
-  const ballMat = new CANNON.Material('ball');
-  const contact = new CANNON.ContactMaterial(groundMat, ballMat, {
-    friction:0.35, restitution:0.55
-  });
-  world.addContactMaterial(contact);
-
-  // ---- ground ----
-  const groundSize = 90;
-  const groundGeo = new THREE.PlaneGeometry(groundSize, groundSize, 1, 1);
-  const groundMesh = new THREE.Mesh(groundGeo, new THREE.MeshStandardMaterial({color:0x39322a, roughness:0.95}));
-  groundMesh.rotation.x = -Math.PI/2;
-  groundMesh.receiveShadow = true;
-  scene.add(groundMesh);
-
-  const groundBody = new CANNON.Body({mass:0, material:groundMat});
-  groundBody.addShape(new CANNON.Plane());
-  groundBody.quaternion.setFromEuler(-Math.PI/2, 0, 0);
-  world.addBody(groundBody);
-
-  // low perimeter wall so the ball stays explorable (bumpers, not a hard box)
-  const wallH = 2.2, half = groundSize/2;
-  function addWall(px,pz,sx,sz){
-    const geo = new THREE.BoxGeometry(sx, wallH, sz);
-    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color:0x2a2118, roughness:0.9}));
-    mesh.position.set(px, wallH/2, pz);
-    mesh.castShadow = true; mesh.receiveShadow = true;
-    scene.add(mesh);
-    const body = new CANNON.Body({mass:0, material:groundMat});
-    body.addShape(new CANNON.Box(new CANNON.Vec3(sx/2, wallH/2, sz/2)));
-    body.position.set(px, wallH/2, pz);
-    world.addBody(body);
-  }
-  addWall(0,-half,groundSize,1);
-  addWall(0, half,groundSize,1);
-  addWall(-half,0,1,groundSize);
-  addWall( half,0,1,groundSize);
-
-  // ---- obstacles: boxes, ramps ----
-  const obstacleMat = new THREE.MeshStandardMaterial({color:0x55483a, roughness:0.85});
-  function addBox(px,py,pz,sx,sy,sz, rotY=0){
-    const geo = new THREE.BoxGeometry(sx,sy,sz);
-    const mesh = new THREE.Mesh(geo, obstacleMat);
-    mesh.position.set(px,py,pz);
-    mesh.rotation.y = rotY;
-    mesh.castShadow = true; mesh.receiveShadow = true;
-    scene.add(mesh);
-    const body = new CANNON.Body({mass:0, material:groundMat});
-    body.addShape(new CANNON.Box(new CANNON.Vec3(sx/2,sy/2,sz/2)));
-    body.position.set(px,py,pz);
-    body.quaternion.setFromEuler(0,rotY,0);
-    world.addBody(body);
-  }
-  function addRamp(px,py,pz, sx,sy,sz, rotZ, rotY=0){
-    const geo = new THREE.BoxGeometry(sx,sy,sz);
-    const mesh = new THREE.Mesh(geo, obstacleMat);
-    mesh.position.set(px,py,pz);
-    mesh.rotation.set(0,rotY,rotZ);
-    mesh.castShadow = true; mesh.receiveShadow = true;
-    scene.add(mesh);
-    const body = new CANNON.Body({mass:0, material:groundMat});
-    body.addShape(new CANNON.Box(new CANNON.Vec3(sx/2,sy/2,sz/2)));
-    body.position.set(px,py,pz);
-    const q = new CANNON.Quaternion();
-    q.setFromEuler(0,rotY,rotZ);
-    body.quaternion.copy(q);
-    world.addBody(body);
-  }
-
-  addBox(6,0.5,4, 3,1,3);
-  addBox(-8,0.6,10, 2,1.2,6);
-  addBox(14,0.5,-6, 4,1,2, 0.4);
-  addBox(-15,0.7,-12, 5,1.4,5);
-  addBox(2,0.5,-18, 3,1,3);
-  addBox(20,0.9,12, 2,1.8,2);
-  addBox(-22,0.5,2, 3,1,8);
-  addRamp(0,0.4,10, 6,0.6,4, -0.28);
-  addRamp(-10,0.6,-4, 5,0.6,4, 0.3, 0.6);
-  addRamp(10,0.7,-14, 6,0.6,5, -0.32, -0.4);
-
-  // decorative rocks (no physics, pure set-dressing)
-  const rockMat = new THREE.MeshStandardMaterial({color:0x2f2a22, roughness:1});
-  for(let i=0;i<14;i++){
-    const s = 0.6 + Math.random()*1.6;
-    const geo = new THREE.DodecahedronGeometry(s,0);
-    const mesh = new THREE.Mesh(geo, rockMat);
-    const ang = Math.random()*Math.PI*2, rad = 18+Math.random()*20;
-    mesh.position.set(Math.cos(ang)*rad, s*0.4, Math.sin(ang)*rad);
-    mesh.rotation.set(Math.random(),Math.random(),Math.random());
-    mesh.castShadow = true; mesh.receiveShadow = true;
-    scene.add(mesh);
-  }
-
-  // ---- collectible rings (scoring, no physics — proximity trigger) ----
-  const ringGeo = new THREE.TorusGeometry(1.6, 0.18, 12, 28);
-  const ringMatA = new THREE.MeshStandardMaterial({color:0xc9a24b, emissive:0x4a3712, roughness:0.4, metalness:0.6});
-  const ringPositions = [
-    [6,1.8,4],[-8,2.2,10],[14,1.8,-6],[-15,2.4,-12],[2,1.8,-18],[20,2.6,12]
-  ];
-  ringPositions.forEach(([x,y,z])=>{
-    const mesh = new THREE.Mesh(ringGeo, ringMatA.clone());
-    mesh.position.set(x,y,z);
-    mesh.rotation.y = Math.random()*Math.PI;
-    scene.add(mesh);
-    rings.push({mesh, pos:new THREE.Vector3(x,y,z), collected:false});
-  });
-
-  // ---- the ball ----
-  const ballR = 0.55;
-  const ballGeo = new THREE.SphereGeometry(ballR, 24, 24);
-  const ballMatVis = new THREE.MeshStandardMaterial({color:0xe8e2d3, metalness:0.85, roughness:0.25});
-  ballMesh = new THREE.Mesh(ballGeo, ballMatVis);
-  ballMesh.castShadow = true;
-  scene.add(ballMesh);
-
-  ballBody = new CANNON.Body({
-    mass: 0.6,
-    shape: new CANNON.Sphere(ballR),
-    material: ballMat,
-    linearDamping: 0.15,
-    angularDamping: 0.3
-  });
-  ballBody.position.set(0,3,0);
-  world.addBody(ballBody);
-
-  // ---- NPCs: simple wandering characters ----
-  const npcLines = [
-    "Careful of the ramps out here.",
-    "There's a ring past those rocks.",
-    "Wind still holding, nice.",
-    "Watch the drop-off to the west.",
-    "Six rings, if you can find them all."
-  ];
-  const npcColors = [0x7fae6f, 0x6f93ae, 0xae6f8f, 0xae9a6f, 0x8f7fae];
-  const npcSpawns = [[10,0,6],[-6,0,-8],[0,0,16],[-16,0,4],[16,0,-2]];
-  npcSpawns.forEach((pos,i)=>{
-    const group = new THREE.Group();
-    const bodyGeo = new THREE.CylinderGeometry(0.35,0.4,1.0,10);
-    const headGeo = new THREE.SphereGeometry(0.3,12,12);
-    const mat = new THREE.MeshStandardMaterial({color:npcColors[i%npcColors.length], roughness:0.7});
-    const bodyMesh = new THREE.Mesh(bodyGeo, mat);
-    bodyMesh.position.y = 0.5;
-    bodyMesh.castShadow = true;
-    const headMesh = new THREE.Mesh(headGeo, mat);
-    headMesh.position.y = 1.15;
-    headMesh.castShadow = true;
-    group.add(bodyMesh, headMesh);
-    group.position.set(pos[0],0,pos[2]);
-    scene.add(group);
-    npcs.push({
-      group, home:new THREE.Vector3(pos[0],0,pos[2]),
-      target:new THREE.Vector3(pos[0],0,pos[2]),
-      speed: 0.9+Math.random()*0.6,
-      wanderR: 5+Math.random()*4,
-      line: npcLines[i%npcLines.length],
-      lastTalk: 0
-    });
-  });
-
-  camera.position.set(0,5,8);
-
-  clock = new THREE.Clock();
-  window.addEventListener('resize', onResize);
-  setupMotion();
-  requestAnimationFrame(loop);
-}
-
-function onResize(){
-  if(!renderer) return;
-  camera.aspect = window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-/* ---- gyroscope: tilt the real gravity vector, like tilting the board ---- */
-function setupMotion(){
-  const btn = document.getElementById('motionBtn');
-  const tiltChip = document.getElementById('tiltChip');
-
-  function attach(){
-    window.addEventListener('deviceorientation', onOrient, true);
-    btn.style.display = 'none';
-    showToast('Tilt to roll the ball. Explore and find all 6 rings.');
-  }
-
-  function onOrient(e){
-    if(e.beta===null || e.gamma===null) return;
-    if(baseGamma===null){ baseGamma = e.gamma; baseBeta = e.beta; }
-    const dGamma = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(e.gamma - baseGamma, -45, 45));
-    const dBeta  = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(e.beta - baseBeta, -45, 45));
-    tiltGamma = dGamma;
-    tiltBeta  = dBeta;
-    tiltChip.textContent = 'TILT ' + Math.round(THREE.MathUtils.radToDeg(dGamma)) + '/' + Math.round(THREE.MathUtils.radToDeg(dBeta));
-  }
-
-  btn.addEventListener('click', ()=>{
-    if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
-      DeviceOrientationEvent.requestPermission().then(state=>{
-        if(state==='granted'){ attach(); }
-        else { enableDragFallback(); }
-      }).catch(()=> enableDragFallback());
-    } else if('DeviceOrientationEvent' in window){
-      attach();
+function startGame(gyroRequested) {
+    if (gyroRequested) {
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            DeviceOrientationEvent.requestPermission()
+                .then(permissionState => {
+                    if (permissionState === 'granted') {
+                        useGyro = true;
+                        window.addEventListener('deviceorientation', handleOrientation);
+                        initGame();
+                    } else {
+                        alert("Gyroscope access denied. Reverting to keyboard controls.");
+                        initGame();
+                    }
+                })
+                .catch(console.error);
+        } else {
+            // Android or desktop testing gyro simulations
+            useGyro = true;
+            window.addEventListener('deviceorientation', handleOrientation);
+            initGame();
+        }
     } else {
-      enableDragFallback();
+        initGame();
     }
-  });
-
-  function enableDragFallback(){
-    btn.style.display='none';
-    const pad = document.getElementById('tiltPad');
-    pad.style.display = 'block';
-    showToast('No gyroscope found — drag the screen to tilt.');
-    let active=false, sx=0, sy=0;
-    pad.addEventListener('touchstart', e=>{active=true; const t=e.touches[0]; sx=t.clientX; sy=t.clientY;}, {passive:true});
-    pad.addEventListener('touchmove', e=>{
-      if(!active) return;
-      const t=e.touches[0];
-      const dx = t.clientX-sx, dy = t.clientY-sy;
-      manualTilt.x = THREE.MathUtils.clamp(dx/60, -1,1) * THREE.MathUtils.degToRad(35);
-      manualTilt.y = THREE.MathUtils.clamp(dy/60, -1,1) * THREE.MathUtils.degToRad(35);
-      tiltGamma = manualTilt.x; tiltBeta = manualTilt.y;
-      tiltChip.textContent = 'TILT ' + Math.round(THREE.MathUtils.radToDeg(tiltGamma)) + '/' + Math.round(THREE.MathUtils.radToDeg(tiltBeta));
-    }, {passive:true});
-    pad.addEventListener('touchend', ()=>{active=false; manualTilt.x=0; manualTilt.y=0; tiltGamma=0; tiltBeta=0;});
-  }
 }
 
-/* ---- main loop ---- */
-const scoreChip = document.getElementById('scoreChip');
-
-function stepPhysics(dt){
-  // rotate the true gravity vector by the device tilt — the board tilts,
-  // gravity magnitude stays the real 9.82 m/s^2
-  const gx = Math.sin(tiltGamma) * G;
-  const gz = Math.sin(tiltBeta) * G;
-  const gy = -Math.sqrt(Math.max(G*G - gx*gx - gz*gz, 0.2));
-  world.gravity.set(gx, gy, gz);
-
-  world.step(1/60, dt, 5);
-
-  if(ballBody.position.y < -15){
-    ballBody.position.set(0,3,0);
-    ballBody.velocity.set(0,0,0);
-    ballBody.angularVelocity.set(0,0,0);
-    showToast('Fell off — back to the start point.');
-  }
-}
-
-function updateNpcs(dt, t){
-  npcs.forEach(n=>{
-    const d = n.target.clone().sub(n.group.position);
-    if(d.length() < 0.3){
-      const ang = Math.random()*Math.PI*2;
-      const r = Math.random()*n.wanderR;
-      n.target.set(n.home.x + Math.cos(ang)*r, 0, n.home.z + Math.sin(ang)*r);
-    } else {
-      d.normalize();
-      n.group.position.addScaledVector(d, n.speed*dt);
-      n.group.rotation.y = Math.atan2(d.x, d.z);
+function handleOrientation(event) {
+    // gamma is the left-to-right tilt in degrees
+    if (event.gamma !== null) {
+        tiltAngle = event.gamma;
     }
-    n.group.position.y = Math.sin(t*2 + n.home.x) * 0.02; // idle bob
-    const dist = n.group.position.distanceTo(ballMesh.position);
-    if(dist < 4 && t - n.lastTalk > 5){
-      n.lastTalk = t;
-      showToast(n.line);
+}
+
+function initGame() {
+    gameState = 'PLAYING';
+    menuOverlay.style.display = 'none';
+    score = 0;
+    highestFloor = 0;
+    cameraY = 0;
+    baseScrollSpeed = 0.3;
+    scrollSpeed = baseScrollSpeed;
+    
+    player.x = 230;
+    player.y = 500;
+    player.vx = 0;
+    player.vy = 0;
+    lastFloorLanded = 0;
+    comboActive = false;
+    comboCount = 0;
+    particles = [];
+
+    // Build Ground and starting platforms
+    platforms = [];
+    // Floor 0 (The Ground)
+    platforms.push({ x: 0, y: 550, width: canvas.width, label: 0 });
+    
+    for (let i = 1; i < 30; i++) {
+        generatePlatform(i);
     }
-  });
+
+    requestAnimationFrame(gameLoop);
 }
 
-function updateRings(){
-  rings.forEach(r=>{
-    if(r.collected) return;
-    r.mesh.rotation.y += 0.01;
-    if(r.pos.distanceTo(ballMesh.position) < 1.7){
-      r.collected = true;
-      r.mesh.visible = false;
-      ringsCollected++;
-      scoreChip.textContent = 'RINGS ' + ringsCollected + '/6';
-      showToast(ringsCollected>=6 ? 'All rings found. Keep exploring!' : 'Ring collected.');
+function generatePlatform(floorNumber) {
+    const y = 550 - (floorNumber * 90); // 90px spacing between floors
+    let width = Math.max(120, 260 - (floorNumber * 1.5));
+    let x = Math.random() * (canvas.width - width - 40) + 20;
+    
+    // Every 5th floor layout variant
+    if (floorNumber % 5 === 0) {
+        width = Math.max(90, width - 30);
     }
-  });
+
+    platforms.push({ x: x, y: y, width: width, label: floorNumber });
 }
 
-function updateCamera(dt){
-  const back = new THREE.Vector3(0,3.2,6.5);
-  const targetPos = ballMesh.position.clone().add(back);
-  camera.position.lerp(targetPos, 1-Math.pow(0.001,dt));
-  const lookAt = ballMesh.position.clone().add(new THREE.Vector3(0,0.6,0));
-  camera.lookAt(lookAt);
+// Particle system for combo sparks
+function spawnSparks(x, y) {
+    const colors = ['#ff3300', '#ffaa00', '#ffff00', '#00ccff', '#ff00ff'];
+    for (let i = 0; i < 15; i++) {
+        particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 6,
+            vy: (Math.random() - 0.5) * 6 - 2,
+            size: Math.random() * 5 + 3,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            alpha: 1,
+            life: Math.random() * 20 + 20
+        });
+    }
 }
 
-function loop(){
-  requestAnimationFrame(loop);
-  const dt = Math.min(clock.getDelta(), 0.05);
-  const t = clock.elapsedTime;
+// Drawing Logic
+function drawBackground() {
+    // Dark castle brick pattern background
+    ctx.fillStyle = '#1c1714';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  stepPhysics(dt);
+    ctx.strokeStyle = '#120e0c';
+    ctx.lineWidth = 2;
+    
+    // Draw brick grids offset by camera offset
+    let startRow = Math.floor(cameraY / 30) - 1;
+    let endRow = startRow + Math.ceil(canvas.height / 30) + 2;
 
-  ballMesh.position.copy(ballBody.position);
-  ballMesh.quaternion.copy(ballBody.quaternion);
+    for (let row = startRow; row < endRow; row++) {
+        let yPos = (row * 30) - cameraY;
+        ctx.beginPath();
+        ctx.moveTo(0, yPos);
+        ctx.lineTo(canvas.width, yPos);
+        ctx.stroke();
 
-  updateNpcs(dt, t);
-  updateRings();
-  updateCamera(dt);
+        let offset = (row % 2 === 0) ? 0 : 25;
+        for (let x = offset; x < canvas.width; x += 50) {
+            ctx.beginPath();
+            ctx.moveTo(x, yPos);
+            ctx.lineTo(x, yPos + 30);
+            ctx.stroke();
+        }
+    }
 
-  renderer.render(scene, camera);
-}
-</script>
-</body>
-</html>
+    // Draw Arched Gothic Windows periodically
+    let windowInterval = 400;
+    let firstWinIndex = Math.floor(cameraY / windowInterval) - 1;
+    for (let i = firstWinIndex; i < firstWinIndex + 3; i++) {
+        let winY = (i * windowInterval) + 150 - cameraY;
+        
