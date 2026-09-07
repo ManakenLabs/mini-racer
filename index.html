@@ -3,330 +3,278 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Icy Tower HTML5 - Kenny Edition</title>
+    <title>Icy Tower HTML5</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             background: #111;
             color: #fff;
-            font-family: 'Courier New', Courier, monospace;
+            font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
             overflow: hidden;
-            touch-action: none;
         }
         #game-container {
             position: relative;
             width: 100%;
-            max-width: 500px;
-            aspect-ratio: 5 / 6;
+            max-width: 450px;
             background: #222;
-            border: 4px solid #444;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 4px solid #333;
         }
         canvas {
             width: 100%;
-            height: 100%;
+            height: auto;
             display: block;
+            background: #1c1714;
         }
-        .ui-overlay {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            right: 10px;
-            display: flex;
-            justify-content: space-between;
-            pointer-events: none;
-            font-weight: bold;
-            font-size: 18px;
-            text-shadow: 2px 2px 0px #000;
-        }
-        #combo-container {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60%;
-            background: rgba(0,0,0,0.6);
-            border: 2px solid #ff5500;
-            padding: 5px;
-            border-radius: 5px;
-            display: none;
-            text-align: center;
-            pointer-events: none;
-        }
-        #combo-bar {
-            height: 10px;
-            background: #ff5500;
+        .controls {
             width: 100%;
-            transition: width 0.1s linear;
-        }
-        #combo-text {
-            font-size: 14px;
-            margin-bottom: 2px;
-            color: #ffaa00;
-            text-shadow: 1px 1px 0 #000;
-        }
-        #menu-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(0,0,0,0.8);
+            max-width: 450px;
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            text-align: center;
+            justify-content: space-around;
+            padding: 15px;
+            background: #222;
         }
-        button {
+        .btn {
             background: #ff5500;
             color: white;
             border: none;
-            padding: 12px 24px;
-            font-size: 18px;
+            padding: 15px 25px;
+            font-size: 16px;
             font-weight: bold;
+            border-radius: 8px;
             cursor: pointer;
-            border-radius: 5px;
-            margin: 10px;
-            box-shadow: 0 4px 0 #992200;
+            min-width: 120px;
+            text-align: center;
         }
-        button:active {
-            transform: translateY(2px);
-            box-shadow: 0 2px 0 #992200;
+        .btn-green {
+            background: #00aa66;
         }
-        #hurry-text {
-            position: absolute;
-            top: 40%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 40px;
-            color: #ff3300;
-            font-weight: bold;
-            text-shadow: 3px 3px 0 #000;
-            display: none;
-            pointer-events: none;
-            animation: blink 0.3s infinite alternate;
-        }
-        @keyframes blink { from { opacity: 1; } to { opacity: 0; } }
     </style>
 </head>
 <body>
 
 <div id="game-container">
-    <canvas id="gameCanvas" width="500" height="600"></canvas>
-    
-    <div class="ui-overlay">
-        <div id="score-display">SCORE: 0</div>
-        <div id="floor-display">FLOOR: 0</div>
-    </div>
+    <canvas id="gameCanvas" width="400" height="500"></canvas>
+</div>
 
-    <div id="hurry-text">HURRY UP!</div>
-
-    <div id="combo-container">
-        <div id="combo-text">COMBO X2</div>
-        <div id="combo-bar"></div>
-    </div>
-
-    <div id="menu-overlay">
-        <h1 style="color: #ff5500; margin-bottom: 10px; text-shadow: 2px 2px 0 #000;">ICY TOWER</h1>
-        <p style="margin-bottom: 20px; font-size: 14px; color: #ccc;">Kenny Edition</p>
-        <button id="start-btn">PLAY WITH KEYS</button>
-        <button id="gyro-btn" style="background: #00aa66; box-shadow: 0 4px 0 #005522;">PLAY ON IPHONE (TILT)</button>
-        <p style="font-size: 11px; margin-top: 15px; color: #888; max-width: 80%;">Keys: Left/Right to run. Space/Up to jump.<br>Mobile: Tilt phone to run. Auto-jumps automatically!</p>
-    </div>
+<div class="controls">
+    <button id="leftBtn" class="btn">← LEFT</button>
+    <button id="jumpBtn" class="btn btn-green">JUMP</button>
+    <button id="rightBtn" class="btn">RIGHT →</button>
 </div>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Game States
-let gameState = 'MENU';
 let score = 0;
 let highestFloor = 0;
 let cameraY = 0;
-let scrollSpeed = 0;
-let baseScrollSpeed = 0.3;
-let hurryTimer = 0;
+let gameOver = false;
 
-// Combo System
-let comboActive = false;
-let comboCount = 0;
-let comboClock = 0;
-const MAX_COMBO_CLOCK = 100;
-let floorsSkippedThisJump = 0;
-let lastFloorLanded = 0;
-let particles = [];
-
-// Controls Configuration
-let useGyro = false;
-let tiltAngle = 0;
-let keys = {};
-
-// Entities
 let player = {
-    x: 230,
-    y: 500,
-    width: 32,
-    height: 40,
+    x: 180,
+    y: 400,
+    width: 30,
+    height: 35,
     vx: 0,
     vy: 0,
-    isGrounded: false,
-    facing: 1, // 1 = Right, -1 = Left
-    speed: 0.4,
-    maxVx: 7,
-    friction: 0.88,
+    speed: 0.5,
+    maxVx: 6,
     gravity: 0.4,
-    jumpForce: -9
+    jumpForce: -9.5,
+    isGrounded: false
 };
 
 let platforms = [];
-const PLATFORM_THICKNESS = 32; // Twice as thick as standard 16px layouts
 
-// Initialize UI Elements
-const menuOverlay = document.getElementById('menu-overlay');
-const scoreDisplay = document.getElementById('score-display');
-const floorDisplay = document.getElementById('floor-display');
-const comboContainer = document.getElementById('combo-container');
-const comboBar = document.getElementById('combo-bar');
-const comboText = document.getElementById('combo-text');
-const hurryText = document.getElementById('hurry-text');
+// Clean Event Listeners for On-Screen Buttons (Works everywhere on Mobile & Desktop)
+const leftBtn = document.getElementById('leftBtn');
+const rightBtn = document.getElementById('rightBtn');
+const jumpBtn = document.getElementById('jumpBtn');
 
-// Event Listeners
-document.getElementById('start-btn').addEventListener('click', () => startGame(false));
-document.getElementById('gyro-btn').addEventListener('click', () => startGame(true));
+let moveLeft = false;
+let moveRight = false;
 
-window.addEventListener('keydown', e => { keys[e.code] = true; });
-window.addEventListener('keyup', e => { keys[e.code] = false; });
+// Left Button Touch/Mouse
+leftBtn.addEventListener('mousedown', () => moveLeft = true);
+leftBtn.addEventListener('mouseup', () => moveLeft = false);
+leftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); moveLeft = true; });
+leftBtn.addEventListener('touchend', () => moveLeft = false);
 
-function startGame(gyroRequested) {
-    if (gyroRequested) {
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            DeviceOrientationEvent.requestPermission()
-                .then(permissionState => {
-                    if (permissionState === 'granted') {
-                        useGyro = true;
-                        window.addEventListener('deviceorientation', handleOrientation);
-                        initGame();
-                    } else {
-                        alert("Gyroscope access denied. Reverting to keyboard controls.");
-                        initGame();
-                    }
-                })
-                .catch(console.error);
-        } else {
-            // Android or desktop testing gyro simulations
-            useGyro = true;
-            window.addEventListener('deviceorientation', handleOrientation);
-            initGame();
-        }
-    } else {
-        initGame();
+// Right Button Touch/Mouse
+rightBtn.addEventListener('mousedown', () => moveRight = true);
+rightBtn.addEventListener('mouseup', () => moveRight = false);
+rightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); moveRight = true; });
+rightBtn.addEventListener('touchend', () => moveRight = false);
+
+// Jump Button Touch/Mouse
+const triggerJump = () => {
+    if (player.isGrounded) {
+        player.vy = player.jumpForce;
+        player.isGrounded = false;
     }
-}
+    if (gameOver) resetGame();
+};
+jumpBtn.addEventListener('mousedown', triggerJump);
+jumpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); triggerJump(); });
 
-function handleOrientation(event) {
-    // gamma is the left-to-right tilt in degrees
-    if (event.gamma !== null) {
-        tiltAngle = event.gamma;
-    }
-}
+// Keyboard Fallback Controls
+window.addEventListener('keydown', (e) => {
+    if (e.code === 'ArrowLeft') moveLeft = true;
+    if (e.code === 'ArrowRight') moveRight = true;
+    if (e.code === 'Space' || e.code === 'ArrowUp') triggerJump();
+});
+window.addEventListener('keyup', (e) => {
+    if (e.code === 'ArrowLeft') moveLeft = false;
+    if (e.code === 'ArrowRight') moveRight = false;
+});
 
-function initGame() {
-    gameState = 'PLAYING';
-    menuOverlay.style.display = 'none';
+function resetGame() {
     score = 0;
     highestFloor = 0;
     cameraY = 0;
-    baseScrollSpeed = 0.3;
-    scrollSpeed = baseScrollSpeed;
-    
-    player.x = 230;
-    player.y = 500;
+    gameOver = false;
+    player.x = 180;
+    player.y = 400;
     player.vx = 0;
     player.vy = 0;
-    lastFloorLanded = 0;
-    comboActive = false;
-    comboCount = 0;
-    particles = [];
-
-    // Build Ground and starting platforms
-    platforms = [];
-    // Floor 0 (The Ground)
-    platforms.push({ x: 0, y: 550, width: canvas.width, label: 0 });
     
-    for (let i = 1; i < 30; i++) {
-        generatePlatform(i);
+    platforms = [];
+    platforms.push({ x: 0, y: 470, width: canvas.width, label: 0 }); // Ground base floor
+    for (let i = 1; i < 50; i++) {
+        let w = Math.max(90, 200 - (i * 1.5));
+        let x = Math.random() * (canvas.width - w - 20) + 10;
+        let y = 470 - (i * 80);
+        platforms.push({ x: x, y: y, width: w, label: i });
+    }
+}
+
+function update() {
+    if (gameOver) return;
+
+    // Movement Calculations
+    if (moveLeft) player.vx -= player.speed;
+    else if (moveRight) player.vx += player.speed;
+    else player.vx *= 0.85;
+
+    if (player.vx > player.maxVx) player.vx = player.maxVx;
+    if (player.vx < -player.maxVx) player.vx = -player.maxVx;
+
+    player.x += player.vx;
+
+    // Wall Bounce mechanics
+    if (player.x < 0) { player.x = 0; player.vx = -player.vx * 1.1; }
+    if (player.x > canvas.width - player.width) { player.x = canvas.width - player.width; player.vx = -player.vx * 1.1; }
+
+    // Gravity
+    player.vy += player.gravity;
+    player.y += player.vy;
+    player.isGrounded = false;
+
+    // Landing check
+    if (player.vy > 0) {
+        platforms.forEach(p => {
+            if (
+                player.x + player.width > p.x &&
+                player.x < p.x + p.width &&
+                player.y + player.height >= p.y &&
+                player.y + player.height - player.vy <= p.y + 12
+            ) {
+                player.y = p.y - player.height;
+                player.vy = 0;
+                player.isGrounded = true;
+
+                if (p.label > highestFloor) {
+                    highestFloor = p.label;
+                    score = highestFloor * 10;
+                }
+            }
+        });
     }
 
+    // Camera follow mechanics
+    if (player.y - cameraY < 200) {
+        cameraY += ((player.y - cameraY) - 200) * 0.1;
+    }
+    
+    // Smooth camera crawl
+    cameraY -= 0.4 + (highestFloor * 0.02);
+
+    // Out of bounds check
+    if (player.y - cameraY > canvas.height) {
+        gameOver = true;
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Background bricks grid lines
+    ctx.strokeStyle = '#28211d';
+    ctx.lineWidth = 1;
+    for (let y = Math.floor(cameraY % 40); y < canvas.height; y += 40) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+
+    // Platforms
+    platforms.forEach(p => {
+        let ry = p.y - cameraY;
+        if (ry < -50 || ry > canvas.height + 50) return;
+        
+        ctx.fillStyle = '#5c8ba6';
+        ctx.fillRect(p.x, ry, p.width, 24); // Thick ice floor structures
+        ctx.fillStyle = '#d9f0fc';
+        ctx.fillRect(p.x, ry, p.width, 6);
+
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.font = 'bold 11px Arial';
+        ctx.fillText(`FL ${p.label}`, p.x + 8, ry + 18);
+    });
+
+    // Drawing Kenny character capsule representation shapes
+    let ry = player.y - cameraY;
+    if (!gameOver) {
+        ctx.fillStyle = '#e65c00'; // Orange coat body base layer
+        ctx.fillRect(player.x, ry, player.width, player.height);
+        ctx.fillStyle = '#ffdbbd'; // Face layout opening bubble
+        ctx.fillRect(player.x + 6, ry + 4, player.width - 12, 14);
+        ctx.fillStyle = '#fff'; // White eyes circles
+        ctx.fillRect(player.x + 9, ry + 7, 5, 7);
+        ctx.fillRect(player.x + 16, ry + 7, 5, 7);
+    }
+
+    // Scores Overlay displays
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText(`SCORE: ${score}`, 15, 25);
+    ctx.fillText(`FLOOR: ${highestFloor}`, canvas.width - 110, 25);
+
+    if (gameOver) {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#ff3300';
+        ctx.font = 'bold 24px monospace';
+        ctx.fillText("GAME OVER", canvas.width/2 - 65, canvas.height/2);
+        ctx.fillStyle = '#fff';
+        ctx.font = '14px monospace';
+        ctx.fillText("TAP JUMP TO RESTART", canvas.width/2 - 80, canvas.height/2 + 30);
+    }
+}
+
+function gameLoop() {
+    update();
+    draw();
     requestAnimationFrame(gameLoop);
 }
 
-function generatePlatform(floorNumber) {
-    const y = 550 - (floorNumber * 90); // 90px spacing between floors
-    let width = Math.max(120, 260 - (floorNumber * 1.5));
-    let x = Math.random() * (canvas.width - width - 40) + 20;
-    
-    // Every 5th floor layout variant
-    if (floorNumber % 5 === 0) {
-        width = Math.max(90, width - 30);
-    }
+resetGame();
+gameLoop();
+</script>
 
-    platforms.push({ x: x, y: y, width: width, label: floorNumber });
-}
-
-// Particle system for combo sparks
-function spawnSparks(x, y) {
-    const colors = ['#ff3300', '#ffaa00', '#ffff00', '#00ccff', '#ff00ff'];
-    for (let i = 0; i < 15; i++) {
-        particles.push({
-            x: x,
-            y: y,
-            vx: (Math.random() - 0.5) * 6,
-            vy: (Math.random() - 0.5) * 6 - 2,
-            size: Math.random() * 5 + 3,
-            color: colors[Math.floor(Math.random() * colors.length)],
-            alpha: 1,
-            life: Math.random() * 20 + 20
-        });
-    }
-}
-
-// Drawing Logic
-function drawBackground() {
-    // Dark castle brick pattern background
-    ctx.fillStyle = '#1c1714';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.strokeStyle = '#120e0c';
-    ctx.lineWidth = 2;
-    
-    // Draw brick grids offset by camera offset
-    let startRow = Math.floor(cameraY / 30) - 1;
-    let endRow = startRow + Math.ceil(canvas.height / 30) + 2;
-
-    for (let row = startRow; row < endRow; row++) {
-        let yPos = (row * 30) - cameraY;
-        ctx.beginPath();
-        ctx.moveTo(0, yPos);
-        ctx.lineTo(canvas.width, yPos);
-        ctx.stroke();
-
-        let offset = (row % 2 === 0) ? 0 : 25;
-        for (let x = offset; x < canvas.width; x += 50) {
-            ctx.beginPath();
-            ctx.moveTo(x, yPos);
-            ctx.lineTo(x, yPos + 30);
-            ctx.stroke();
-        }
-    }
-
-    // Draw Arched Gothic Windows periodically
-    let windowInterval = 400;
-    let firstWinIndex = Math.floor(cameraY / windowInterval) - 1;
-    for (let i = firstWinIndex; i < firstWinIndex + 3; i++) {
-        let winY = (i * windowInterval) + 150 - cameraY;
-        
+</body>
+</html>
